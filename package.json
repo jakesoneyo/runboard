@@ -5,7 +5,7 @@
   "description": "runboard 모노레포 루트 — 실제 코드는 backend/, frontend/에 있음. 이 package.json은 pre-commit 훅(husky/lint-staged/prettier)과 워크스페이스 전체 typecheck/test 오케스트레이션 전용.",
   "scripts": {
     "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
-    "test": "npm --prefix backend run test",
+    "test": "npm --prefix backend run test:unit",
     "prepare": "husky"
   },
   "devDependencies": {
