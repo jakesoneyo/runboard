@@ -12,7 +12,9 @@ export function diffFields<T extends Record<string, unknown>>(
   for (const field of allowedFields) {
     const prev = before[field];
     const next = after[field];
-    if (prev !== next) {
+    // steps 같은 Json 필드는 매번 새 배열/객체 참조라 `!==`이 항상 true다(내용이 같아도 "변경"으로
+    // 오탐). JSON.stringify로 값 비교를 하면 원시값 비교와 동일하게 동작하면서 Json 필드도 옳게 처리된다.
+    if (JSON.stringify(prev) !== JSON.stringify(next)) {
       changed[field as string] = [prev, next];
     }
   }
