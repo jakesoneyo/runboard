@@ -1,0 +1,945 @@
+<title>Runboard - Live Pulse UI 목업</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* ==========================================================================
+     Runboard / "Live Pulse" 목업
+     - 디자인 리드: 사내 QA 멀티테넌트 테스트 관리 툴 (전문가용 대시보드), 실시간감이 핵심 차별점
+     - 다이얼: VARIANCE 중간(5~6) / MOTION 높음(8) / DENSITY 중간(5)
+     - 컬러락: 단일 accent = emerald. 결과 배지(Pass/Fail/Blocked/Skip)는 QA 도메인 표준 세맨틱 컬러라 예외.
+     - 형태락: 버튼 = pill, 카드/타일 = 12px, 인풋 = 8px. 전 화면 동일 적용.
+     - 아이콘: 외부 리소스 의존 금지 제약상 인라인 SVG. Tabler류 stroke-width 1.75 통일.
+     - 아바타: 실사진 대신 이니셜 아바타(Slack/Linear식). 외부 이미지 요청 없이 자기완결형 유지 위한 의도적 선택.
+     ========================================================================== */
+
+  :root{
+    --bg:#f6f7f9;
+    --surface:#ffffff;
+    --surface-2:#fafbfc;
+    --border:#e4e7ec;
+    --border-strong:#d6dae2;
+    --text:#12161c;
+    --text-muted:#5b6472;
+    --text-faint:#8a93a1;
+
+    --accent:#059669;
+    --accent-600:#0d9488;
+    --accent-700:#047857;
+    --accent-soft:#ecfdf5;
+    --accent-soft-border:#a7f3d0;
+
+    --danger:#e11d48;
+    --danger-soft:#fff1f2;
+    --danger-soft-border:#fecdd3;
+
+    --warning:#b45309;
+    --warning-soft:#fffbeb;
+    --warning-soft-border:#fde68a;
+
+    --neutral-strong:#475569;
+    --neutral-soft:#f1f5f9;
+    --neutral-soft-border:#cbd5e1;
+
+    --radius-card:12px;
+    --radius-input:8px;
+    --radius-pill:999px;
+
+    --shadow-sm: 0 1px 2px rgba(16,24,40,.06);
+    --shadow-md: 0 4px 14px rgba(16,24,40,.08);
+    --shadow-lg: 0 16px 40px rgba(16,24,40,.14);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI","Malgun Gothic",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+  h1,h2,h3,p,ul{ margin:0; }
+  ul{ list-style:none; padding:0; }
+  button{ font-family:inherit; cursor:pointer; }
+  input{ font-family:inherit; }
+  svg{ display:block; flex:none; }
+
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+
+  /* ---------------------------------------------------------------------- */
+  /* Buttons                                                                  */
+  /* ---------------------------------------------------------------------- */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border-radius:var(--radius-pill);
+    border:1px solid transparent;
+    font-size:14px; font-weight:600;
+    padding:11px 22px;
+    white-space:nowrap;
+    transition:transform .15s cubic-bezier(.16,1,.3,1), box-shadow .15s ease, background-color .15s ease;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn-primary{ background:var(--accent); color:#fff; box-shadow:var(--shadow-sm); }
+  .btn-primary:hover{ background:var(--accent-700); }
+  .btn-dark{ background:#12161c; color:#fff; }
+  .btn-dark:hover{ background:#22272e; }
+  .btn-ghost{ background:transparent; color:var(--text-muted); border-color:var(--border-strong); }
+  .btn-ghost:hover{ background:var(--surface-2); color:var(--text); }
+  .btn-block{ width:100%; }
+  .btn-sm{ padding:7px 14px; font-size:13px; }
+
+  /* ---------------------------------------------------------------------- */
+  /* Badges                                                                   */
+  /* ---------------------------------------------------------------------- */
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    border-radius:var(--radius-pill);
+    font-size:12px; font-weight:600;
+    padding:3px 10px;
+    border:1px solid transparent;
+    line-height:1.6;
+  }
+  .badge-pass{ color:var(--accent-700); background:var(--accent-soft); border-color:var(--accent-soft-border); }
+  .badge-fail{ color:var(--danger); background:var(--danger-soft); border-color:var(--danger-soft-border); }
+  .badge-blocked{ color:var(--warning); background:var(--warning-soft); border-color:var(--warning-soft-border); }
+  .badge-skipped{ color:var(--neutral-strong); background:var(--neutral-soft); border-color:var(--neutral-soft-border); }
+  .badge-pending{ color:var(--text-faint); background:var(--surface); border-color:var(--border-strong); border-style:dashed; }
+
+  .pri{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--text-muted); }
+  .pri::before{ content:''; width:6px; height:6px; border-radius:2px; }
+  .pri-p0::before{ background:var(--danger); }
+  .pri-p1::before{ background:var(--warning); }
+  .pri-p2::before{ background:var(--neutral-strong); }
+
+  .role-badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+    padding:3px 10px; border-radius:var(--radius-pill); border:1px solid var(--border-strong); color:var(--text-muted);
+  }
+  .role-owner{ color:var(--accent-700); border-color:var(--accent-soft-border); background:var(--accent-soft); }
+
+  /* ---------------------------------------------------------------------- */
+  /* Live dot / pulse                                                         */
+  /* ---------------------------------------------------------------------- */
+  .live-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none;
+    animation:pulseDot 1.6s ease-in-out infinite;
+  }
+  @keyframes pulseDot{
+    0%,100%{ opacity:1; transform:scale(1); }
+    50%{ opacity:.45; transform:scale(1.35); }
+  }
+  .live-tag{
+    display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+    letter-spacing:.04em; color:var(--accent-700); background:var(--accent-soft);
+    border:1px solid var(--accent-soft-border); padding:3px 10px; border-radius:var(--radius-pill);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Avatars                                                                  */
+  /* ---------------------------------------------------------------------- */
+  .avatar{
+    position:relative; display:inline-flex; align-items:center; justify-content:center;
+    width:32px; height:32px; border-radius:50%; color:#fff; font-size:11px; font-weight:700;
+    flex:none; border:2px solid var(--surface);
+  }
+  .avatar-sm{ width:26px; height:26px; font-size:10px; }
+  .avatar-lg{ width:44px; height:44px; font-size:14px; }
+  .avatar.online::before{
+    content:''; position:absolute; right:-1px; bottom:-1px; width:9px; height:9px; border-radius:50%;
+    background:var(--accent); border:2px solid var(--surface);
+    animation:pulseDot 1.6s ease-in-out infinite;
+  }
+  .avatar.online::after{
+    content:''; position:absolute; inset:-4px; border-radius:50%; border:1.5px solid var(--accent);
+    animation:ringPing 2.2s cubic-bezier(0,0,.2,1) infinite;
+  }
+  @keyframes ringPing{
+    0%{ transform:scale(.82); opacity:.7; }
+    80%,100%{ transform:scale(1.28); opacity:0; }
+  }
+  .avatar-stack{ display:flex; }
+  .avatar-stack .avatar{ margin-left:-10px; }
+  .avatar-stack .avatar:first-child{ margin-left:0; }
+
+  /* ---------------------------------------------------------------------- */
+  /* Icons (inline, stroke-based, 1.75 weight, consistent family)             */
+  /* ---------------------------------------------------------------------- */
+  .icon{ width:18px; height:18px; stroke:currentColor; stroke-width:1.75; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* ==========================================================================
+     LOGIN SCREEN
+     ========================================================================== */
+  .login-wrap{
+    min-height:100dvh;
+    display:grid;
+    grid-template-columns:1.1fr 1fr;
+  }
+  @media (max-width:860px){ .login-wrap{ grid-template-columns:1fr; } .login-visual{ min-height:280px; } }
+
+  .login-visual{
+    position:relative;
+    background:radial-gradient(circle at 30% 20%, #16342c 0%, #0c1512 55%, #090d0c 100%);
+    color:#fff;
+    overflow:hidden;
+    padding:40px;
+    display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .brand-mark{ display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px; letter-spacing:-.01em; }
+  .brand-mark .dot{ width:9px; height:9px; border-radius:3px; background:var(--accent); }
+
+  .pulse-rings{
+    position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+    width:340px; height:340px; pointer-events:none;
+  }
+  .pulse-rings span{
+    position:absolute; inset:0; border-radius:50%; border:1px solid rgba(16,185,129,.35);
+    animation:pulseRing 3.6s cubic-bezier(.16,1,.3,1) infinite;
+  }
+  .pulse-rings span:nth-child(2){ animation-delay:1.2s; }
+  .pulse-rings span:nth-child(3){ animation-delay:2.4s; }
+  @keyframes pulseRing{
+    0%{ transform:scale(.35); opacity:.9; }
+    100%{ transform:scale(1); opacity:0; }
+  }
+  .float-chip{
+    position:absolute; display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+    backdrop-filter:blur(6px);
+    padding:7px 12px 7px 7px; border-radius:var(--radius-pill); font-size:12px; color:#e7ece9;
+    animation:floaty 5s ease-in-out infinite;
+  }
+  .float-chip.c1{ top:14%; left:8%; animation-delay:.2s; }
+  .float-chip.c2{ top:62%; left:4%; animation-delay:1.4s; }
+  .float-chip.c3{ top:20%; right:6%; animation-delay:.8s; }
+  .float-chip.c4{ top:68%; right:10%; animation-delay:2.1s; }
+  @keyframes floaty{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-9px); }
+  }
+  @keyframes drawLine{ to{ stroke-dashoffset:0; } }
+
+  .login-copy{ position:relative; max-width:420px; }
+  .login-copy h1{ font-size:30px; line-height:1.28; font-weight:700; letter-spacing:-.01em; margin-bottom:12px; }
+  .login-copy p{ font-size:14.5px; color:#c7d0cc; max-width:38ch; }
+  .live-counter{
+    display:inline-flex; align-items:center; gap:7px; margin-top:20px; font-size:12.5px; color:#bfe8d4;
+    border:1px solid rgba(16,185,129,.35); background:rgba(16,185,129,.08); padding:6px 12px; border-radius:var(--radius-pill);
+  }
+
+  .login-form-pane{ background:var(--surface); display:flex; align-items:center; justify-content:center; padding:40px 32px; }
+  .login-form{ width:100%; max-width:360px; }
+  .login-form h2{ font-size:21px; font-weight:700; margin-bottom:4px; }
+  .login-form .lede{ font-size:13.5px; color:var(--text-muted); margin-bottom:26px; }
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px; }
+  .field input{
+    width:100%; padding:11px 13px; font-size:14px; border-radius:var(--radius-input);
+    border:1px solid var(--border-strong); background:var(--surface); color:var(--text);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field input::placeholder{ color:var(--text-faint); }
+  .field input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(5,150,105,.14); }
+  .field .hint{ font-size:12px; color:var(--text-faint); margin-top:5px; }
+
+  .divider{ display:flex; align-items:center; gap:12px; margin:22px 0; color:var(--text-faint); font-size:12px; }
+  .divider::before,.divider::after{ content:''; height:1px; flex:1; background:var(--border); }
+
+  .demo-block{ text-align:center; }
+  .demo-note{ margin-top:10px; font-size:12.5px; color:var(--text-muted); }
+
+  /* ==========================================================================
+     APP SHELL
+     ========================================================================== */
+  #screen-app{ display:none; }
+  #screen-app.active{ display:grid; grid-template-columns:224px 1fr; min-height:100dvh; }
+  @media (max-width:900px){ #screen-app.active{ grid-template-columns:1fr; } .sidebar{ display:none; } }
+
+  .sidebar{
+    background:#12161c; color:#e7eaee; padding:20px 14px; display:flex; flex-direction:column; gap:22px;
+    position:sticky; top:0; height:100dvh;
+  }
+  .sidebar .brand-mark{ color:#fff; padding:0 8px; }
+  .nav-group{ display:flex; flex-direction:column; gap:2px; }
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px;
+    color:#a7afba; font-size:13.5px; font-weight:600; background:transparent; border:none; text-align:left; width:100%;
+    transition:background-color .15s ease, color .15s ease;
+  }
+  .nav-item:hover{ background:rgba(255,255,255,.05); color:#fff; }
+  .nav-item.active{ background:rgba(5,150,105,.18); color:#6ee7b7; }
+  .nav-item .icon{ width:17px; height:17px; }
+  .sidebar-foot{ margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px 8px; border-top:1px solid rgba(255,255,255,.08); }
+  .sidebar-foot .who{ font-size:12.5px; }
+  .sidebar-foot .who small{ display:block; color:#8a93a1; font-size:11px; }
+
+  .app-main{ display:flex; flex-direction:column; min-width:0; }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:12px 24px; background:var(--surface); border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:5;
+  }
+  .org-select{
+    display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px;
+    border:1px solid var(--border-strong); border-radius:var(--radius-input); padding:8px 12px; background:var(--surface-2);
+  }
+  .org-select select{
+    border:none; background:transparent; font:inherit; font-weight:700; color:var(--text); cursor:pointer;
+  }
+  .org-select select:focus{ outline:none; }
+  .topbar-right{ display:flex; align-items:center; gap:16px; }
+  .bell{ position:relative; color:var(--text-muted); }
+  .bell .dot{ position:absolute; top:-2px; right:-2px; width:7px; height:7px; border-radius:50%; background:var(--danger); border:1.5px solid var(--surface); }
+
+  .tab-panel{ display:none; padding:24px; }
+  .tab-panel.active{ display:block; }
+
+  .section-title{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px; }
+  .section-title h2{ font-size:17px; font-weight:700; }
+  .section-title .sub{ font-size:12.5px; color:var(--text-faint); }
+
+  /* ---------------------------------------------------------------------- */
+  /* Dashboard                                                                */
+  /* ---------------------------------------------------------------------- */
+  .kpi-grid{
+    display:grid; grid-template-columns:1.7fr 1fr 1fr 1fr; gap:14px; margin-bottom:20px;
+  }
+  @media (max-width:900px){ .kpi-grid{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:560px){ .kpi-grid{ grid-template-columns:1fr; } }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); }
+  .card-pad{ padding:18px; }
+
+  .kpi-live{
+    background:linear-gradient(155deg, #0d2a20 0%, #12161c 100%); color:#fff; position:relative; overflow:hidden;
+  }
+  .kpi-live .top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .kpi-live .suite-name{ font-size:15px; font-weight:700; margin-top:2px; }
+  .kpi-live .meta{ font-size:12.5px; color:#a9d9c2; margin-top:6px; }
+  .kpi-live .foot{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; }
+
+  .kpi-tile .label{ font-size:12.5px; color:var(--text-muted); font-weight:600; margin-bottom:8px; }
+  .kpi-tile .value{ font-size:26px; font-weight:700; letter-spacing:-.01em; }
+  .kpi-tile .delta{ font-size:12px; margin-top:6px; font-weight:600; }
+  .delta-up{ color:var(--accent-700); }
+  .delta-down{ color:var(--danger); }
+  .delta-flat{ color:var(--text-faint); }
+
+  .progress-track{ position:relative; height:7px; border-radius:var(--radius-pill); background:rgba(255,255,255,.14); overflow:hidden; }
+  .progress-track.light{ background:var(--neutral-soft); }
+  .progress-fill{
+    position:absolute; inset:0; transform-origin:left; transform:scaleX(0);
+    background:linear-gradient(90deg,#059669,#34d399); border-radius:var(--radius-pill);
+    transition:transform 1s cubic-bezier(.16,1,.3,1);
+  }
+
+  .split-2{ display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+  @media (max-width:900px){ .split-2{ grid-template-columns:1fr; } }
+
+  .chart-legend{ display:flex; gap:16px; font-size:12px; color:var(--text-muted); margin-top:10px; }
+  .chart-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .chart-legend i{ width:8px; height:8px; border-radius:2px; background:var(--accent); display:inline-block; }
+
+  .run-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+  .run-row:last-child{ border-bottom:none; }
+  .run-row .info{ flex:1; min-width:0; }
+  .run-row .title{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .run-row .meta{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+
+  /* ---------------------------------------------------------------------- */
+  /* Suites                                                                   */
+  /* ---------------------------------------------------------------------- */
+  .suites-layout{ display:grid; grid-template-columns:240px 1fr; gap:18px; }
+  @media (max-width:860px){ .suites-layout{ grid-template-columns:1fr; } }
+
+  .folder-tree{ display:flex; flex-direction:column; gap:2px; }
+  .folder{
+    display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px; font-size:13px; font-weight:600;
+    color:var(--text); cursor:pointer;
+  }
+  .folder .icon{ color:var(--text-faint); width:16px; height:16px; }
+  .folder.active{ background:var(--accent-soft); color:var(--accent-700); }
+  .folder .count{ margin-left:auto; font-size:11px; color:var(--text-faint); font-weight:600; }
+  .folder-sub{ padding-left:22px; display:flex; flex-direction:column; gap:2px; }
+  .folder-sub .folder{ font-weight:500; font-size:12.5px; }
+
+  .case-table{ width:100%; border-collapse:collapse; }
+  .case-table th{ text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:0 12px 10px; }
+  .case-table td{ padding:12px; font-size:13px; border-top:1px solid var(--border); }
+  .case-table tr:hover td{ background:var(--surface-2); }
+  .case-title{ font-weight:600; }
+  .case-id{ color:var(--text-faint); font-weight:500; margin-right:6px; }
+
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; }
+  .search-input{
+    display:flex; align-items:center; gap:8px; border:1px solid var(--border-strong); border-radius:var(--radius-input);
+    padding:8px 12px; background:var(--surface); color:var(--text-faint); font-size:13px; flex:1; max-width:280px;
+  }
+  .search-input input{ border:none; outline:none; background:transparent; font:inherit; color:var(--text); width:100%; }
+
+  /* ---------------------------------------------------------------------- */
+  /* Live Run                                                                 */
+  /* ---------------------------------------------------------------------- */
+  .live-header{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card);
+    padding:18px 20px; margin-bottom:18px;
+  }
+  .live-header .row1{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .live-header h2{ font-size:16px; font-weight:700; }
+  .live-header .row2{ display:flex; align-items:center; gap:14px; margin-top:14px; }
+  .live-header .progress-label{ font-size:12.5px; color:var(--text-muted); font-weight:600; white-space:nowrap; }
+
+  .live-layout{ display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start; }
+  @media (max-width:960px){ .live-layout{ grid-template-columns:1fr; } }
+
+  .case-row{
+    display:flex; align-items:center; gap:12px; padding:13px 14px; border-radius:10px; margin-bottom:6px;
+    background:var(--surface); border:1px solid var(--border); position:relative;
+  }
+  .case-row .info{ flex:1; min-width:0; }
+  .case-row .title{ font-size:13.5px; font-weight:600; }
+  .case-row .sub{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .case-row .actions{ display:flex; gap:6px; flex:none; }
+
+  .act-btn{
+    width:34px; height:34px; border-radius:9px; border:1px solid var(--border-strong); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; color:var(--text-faint);
+    transition:transform .12s ease, background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .act-btn:hover{ transform:translateY(-1px); }
+  .act-btn:active{ transform:scale(.94); }
+  .act-btn .icon{ width:16px; height:16px; }
+  .act-btn.pass.is-set{ background:var(--accent-soft); border-color:var(--accent-soft-border); color:var(--accent-700); }
+  .act-btn.fail.is-set{ background:var(--danger-soft); border-color:var(--danger-soft-border); color:var(--danger); }
+  .act-btn.blocked.is-set{ background:var(--warning-soft); border-color:var(--warning-soft-border); color:var(--warning); }
+  .act-btn.skip.is-set{ background:var(--neutral-soft); border-color:var(--neutral-soft-border); color:var(--neutral-strong); }
+
+  .case-row.just-updated{ animation:flashFade 1.8s ease-out; }
+  @keyframes flashFade{
+    0%{ background-color:rgba(16,185,129,.16); border-color:var(--accent-soft-border); }
+    100%{ background-color:var(--surface); border-color:var(--border); }
+  }
+
+  .feed-panel{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:14px;
+    position:sticky; top:80px; max-height:calc(100dvh - 100px); overflow:hidden;
+  }
+  .feed-panel h3{ font-size:13px; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+  .feed-list{ display:flex; flex-direction:column; gap:10px; }
+  .feed-item{
+    font-size:12.5px; color:var(--text-muted); padding-bottom:10px; border-bottom:1px solid var(--border);
+    animation:slideIn .4s cubic-bezier(.16,1,.3,1);
+  }
+  .feed-item:last-child{ border-bottom:none; padding-bottom:0; }
+  .feed-item b{ color:var(--text); font-weight:700; }
+  .feed-item .t{ font-size:11px; color:var(--text-faint); margin-top:3px; }
+  @keyframes slideIn{
+    from{ opacity:0; transform:translateY(-10px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Members / Audit                                                          */
+  /* ---------------------------------------------------------------------- */
+  .members-layout{ display:grid; grid-template-columns:1.1fr 1fr; gap:18px; align-items:start; }
+  @media (max-width:900px){ .members-layout{ grid-template-columns:1fr; } }
+
+  .member-row{ display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--border); }
+  .member-row:last-child{ border-bottom:none; }
+  .member-row .who{ flex:1; min-width:0; }
+  .member-row .name{ font-size:13px; font-weight:600; }
+  .member-row .email{ font-size:11.5px; color:var(--text-faint); }
+  .member-row .last{ font-size:11.5px; color:var(--text-faint); flex:none; }
+
+  .audit-list{ display:flex; flex-direction:column; gap:0; max-height:520px; overflow-y:auto; padding-right:4px; }
+  .audit-item{
+    display:flex; gap:12px; padding:11px 0; border-bottom:1px solid var(--border);
+    animation:slideIn .45s cubic-bezier(.16,1,.3,1);
+  }
+  .audit-item:last-child{ border-bottom:none; }
+  .audit-item .dot{ width:7px; height:7px; border-radius:50%; background:var(--border-strong); margin-top:6px; flex:none; }
+  .audit-item.is-new .dot{ background:var(--accent); }
+  .audit-item .body{ font-size:13px; color:var(--text); }
+  .audit-item .body b{ font-weight:700; }
+  .audit-item .time{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+
+  /* ---------------------------------------------------------------------- */
+  /* Reduced motion                                                           */
+  /* ---------------------------------------------------------------------- */
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  }
+</style>
+
+<!-- ============================================================================
+     LOGIN SCREEN
+     ============================================================================ -->
+<div id="screen-login" class="screen active">
+  <div class="login-wrap">
+    <div class="login-visual">
+      <div class="pulse-rings"><span></span><span></span><span></span></div>
+      <div class="float-chip c1"><span class="avatar avatar-sm online" style="background:#0f766e">도윤</span>TC-102 실행 중</div>
+      <div class="float-chip c2"><span class="avatar avatar-sm online" style="background:#b45309">서연</span>PASS 처리</div>
+      <div class="float-chip c3"><span class="avatar avatar-sm online" style="background:#334155">지훈</span>버그 등록</div>
+      <div class="float-chip c4"><span class="avatar avatar-sm online" style="background:#9f1239">유나</span>실행 참여</div>
+
+      <div class="brand-mark"><span class="dot"></span>runboard</div>
+
+      <div class="login-copy">
+        <h1>지금, 누군가 테스트를<br/>실행하고 있습니다.</h1>
+        <p>여러 팀원이 동시에 케이스를 실행하고, 결과가 실시간으로 모두에게 공유됩니다.</p>
+        <div class="live-counter"><span class="live-dot"></span>8명 접속 중</div>
+      </div>
+    </div>
+
+    <div class="login-form-pane">
+      <form class="login-form" id="login-form">
+        <h2>로그인</h2>
+        <p class="lede">조직 계정으로 Runboard에 접속하세요.</p>
+
+        <div class="field">
+          <label for="email">이메일</label>
+          <input id="email" type="text" placeholder="you@company.com" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="pw">비밀번호</label>
+          <input id="pw" type="password" placeholder="비밀번호 입력" autocomplete="current-password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">로그인</button>
+
+        <div class="divider">또는</div>
+
+        <div class="demo-block">
+          <button type="button" id="demo-login-btn" class="btn btn-dark btn-block">
+            <svg class="icon" style="stroke:#fff" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+            회원가입 없이 둘러보기
+          </button>
+          <p class="demo-note">회원가입 없이 체험해 볼 수 있습니다.</p>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================================
+     APP SHELL
+     ============================================================================ -->
+<div id="screen-app">
+  <aside class="sidebar">
+    <div class="brand-mark"><span class="dot"></span>runboard</div>
+    <nav class="nav-group">
+      <button class="nav-item active" data-tab="dashboard">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        대시보드
+      </button>
+      <button class="nav-item" data-tab="suites">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/></svg>
+        테스트 스위트
+      </button>
+      <button class="nav-item" data-tab="live">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>
+        실시간 실행
+      </button>
+      <button class="nav-item" data-tab="audit">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        멤버 · 감사로그
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="avatar avatar-sm online" style="background:#0f766e">관리</span>
+      <span class="who">관리자<small>ADMIN</small></span>
+    </div>
+  </aside>
+
+  <div class="app-main">
+    <header class="topbar">
+      <div class="org-select">
+        <svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21V12h6v9"/></svg>
+        <select id="org-picker">
+          <option value="handfeo">한발더 스튜디오</option>
+          <option value="greenlight">그린라이트 QA</option>
+          <option value="nova">노바 테크</option>
+        </select>
+      </div>
+      <div class="topbar-right">
+        <span class="bell"><svg class="icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0"/></svg><span class="dot"></span></span>
+        <span class="avatar avatar-sm online" style="background:#334155">관리</span>
+      </div>
+    </header>
+
+    <!-- ============================== DASHBOARD ============================== -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <div class="section-title">
+        <h2 id="dash-org-title">한발더 스튜디오 · 대시보드</h2>
+        <span class="sub">최근 7일 기준</span>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="card card-pad kpi-live">
+          <div class="top">
+            <span class="live-tag"><span class="live-dot" style="background:#6ee7b7"></span>LIVE</span>
+            <div class="avatar-stack">
+              <span class="avatar avatar-sm online" style="background:#0f766e">도윤</span>
+              <span class="avatar avatar-sm online" style="background:#b45309">서연</span>
+              <span class="avatar avatar-sm online" style="background:#334155">지훈</span>
+            </div>
+          </div>
+          <div class="suite-name">결제 모듈 회귀 테스트</div>
+          <div class="meta">3명 참여 중 · 12 / 20 케이스 완료</div>
+          <div class="foot" style="flex-direction:column; align-items:stretch; gap:0;">
+            <div class="progress-track"><div class="progress-fill" id="dash-live-fill"></div></div>
+          </div>
+        </div>
+
+        <div class="card card-pad kpi-tile">
+          <div class="label">열려있는 버그</div>
+          <div class="value" id="kpi-bugs" style="color:var(--danger)">23</div>
+          <div class="delta delta-down">▲ 이번 주 +3</div>
+        </div>
+
+        <div class="card card-pad kpi-tile">
+          <div class="label">Pass rate (7일)</div>
+          <div class="value" id="kpi-pass">87.4%</div>
+          <div class="delta delta-up">▲ 지난주 대비 +2.1%p</div>
+        </div>
+
+        <div class="card card-pad kpi-tile">
+          <div class="label">전체 테스트 케이스</div>
+          <div class="value" id="kpi-total">482</div>
+          <div class="delta delta-flat">6개 스위트</div>
+        </div>
+      </div>
+
+      <div class="split-2">
+        <div class="card card-pad">
+          <div class="section-title" style="margin-bottom:6px;">
+            <h2 style="font-size:14px;">Pass rate 추이</h2>
+          </div>
+          <svg viewBox="0 0 400 130" width="100%" height="150" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#059669" stop-opacity="0.22"/>
+                <stop offset="100%" stop-color="#059669" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <polyline fill="url(#areaGrad)" stroke="none"
+              points="0,90 33,98 66,80 100,68 133,74 166,56 200,62 233,40 266,48 300,30 333,36 366,22 400,28 400,130 0,130"/>
+            <polyline class="draw-line" fill="none" stroke="#059669" stroke-width="2.5"
+              points="0,90 33,98 66,80 100,68 133,74 166,56 200,62 233,40 266,48 300,30 333,36 366,22 400,28"
+              style="stroke-dasharray:900; stroke-dashoffset:900; animation:drawLine 1.8s ease-out .2s forwards;"/>
+          </svg>
+          <div class="chart-legend"><span><i></i>Pass rate</span><span style="color:var(--text-faint)">최근 7일, 일 단위</span></div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="section-title" style="margin-bottom:2px;"><h2 style="font-size:14px;">최근 테스트 실행</h2></div>
+          <div class="run-row">
+            <span class="avatar avatar-sm" style="background:#0f766e">도윤</span>
+            <div class="info"><div class="title">결제 모듈 회귀 테스트</div><div class="meta">김도윤 · 8분 전</div></div>
+            <span class="badge badge-pass">PASS</span>
+          </div>
+          <div class="run-row">
+            <span class="avatar avatar-sm" style="background:#b45309">서연</span>
+            <div class="info"><div class="title">로그인 / 인증 스모크</div><div class="meta">이서연 · 41분 전</div></div>
+            <span class="badge badge-fail">FAIL</span>
+          </div>
+          <div class="run-row">
+            <span class="avatar avatar-sm" style="background:#334155">지훈</span>
+            <div class="info"><div class="title">푸시 알림 회귀</div><div class="meta">박지훈 · 1시간 전</div></div>
+            <span class="badge badge-blocked">BLOCKED</span>
+          </div>
+          <div class="run-row">
+            <span class="avatar avatar-sm" style="background:#9f1239">유나</span>
+            <div class="info"><div class="title">관리자 권한 회귀</div><div class="meta">최유나 · 3시간 전</div></div>
+            <span class="badge badge-pass">PASS</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SUITES ============================== -->
+    <section id="tab-suites" class="tab-panel">
+      <div class="section-title">
+        <h2>테스트 스위트</h2>
+        <span class="sub">6개 스위트 · 482개 케이스</span>
+      </div>
+
+      <div class="suites-layout">
+        <div class="card card-pad">
+          <div class="folder-tree">
+            <div class="folder active"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/></svg>로그인 / 인증<span class="count">18</span></div>
+            <div class="folder-sub">
+              <div class="folder">이메일 로그인<span class="count">7</span></div>
+              <div class="folder">소셜 로그인<span class="count">6</span></div>
+              <div class="folder">비밀번호 재설정<span class="count">5</span></div>
+            </div>
+            <div class="folder"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/></svg>결제<span class="count">32</span></div>
+            <div class="folder"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/></svg>알림<span class="count">14</span></div>
+            <div class="folder"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/></svg>관리자<span class="count">21</span></div>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="toolbar">
+            <div class="search-input">
+              <svg class="icon" style="width:15px;height:15px;color:var(--text-faint)" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input placeholder="케이스 검색" />
+            </div>
+            <button class="btn btn-primary btn-sm">+ 새 케이스</button>
+          </div>
+
+          <table class="case-table">
+            <thead><tr><th>케이스</th><th>우선순위</th><th>최근 실행</th><th>담당자</th></tr></thead>
+            <tbody>
+              <tr><td><span class="case-id">TC-101</span><span class="case-title">이메일 형식 오류 시 유효성 검사 메시지 노출</span></td><td><span class="pri pri-p1">P1</span></td><td><span class="badge badge-pass">PASS</span></td><td><span class="avatar avatar-sm" style="background:#0f766e">도윤</span></td></tr>
+              <tr><td><span class="case-id">TC-102</span><span class="case-title">로그인 5회 실패 시 계정 잠금 처리</span></td><td><span class="pri pri-p0">P0</span></td><td><span class="badge badge-fail">FAIL</span></td><td><span class="avatar avatar-sm" style="background:#b45309">서연</span></td></tr>
+              <tr><td><span class="case-id">TC-118</span><span class="case-title">비밀번호 재설정 이메일 발송 및 만료시간 확인</span></td><td><span class="pri pri-p1">P1</span></td><td><span class="badge badge-pending">대기</span></td><td><span class="avatar avatar-sm" style="background:#334155">지훈</span></td></tr>
+              <tr><td><span class="case-id">TC-204</span><span class="case-title">결제 카드 등록 실패 시 에러 핸들링</span></td><td><span class="pri pri-p0">P0</span></td><td><span class="badge badge-blocked">BLOCKED</span></td><td><span class="avatar avatar-sm" style="background:#9f1239">유나</span></td></tr>
+              <tr><td><span class="case-id">TC-231</span><span class="case-title">푸시 알림 수신 동의 토글 상태 동기화</span></td><td><span class="pri pri-p2">P2</span></td><td><span class="badge badge-skipped">SKIP</span></td><td><span class="avatar avatar-sm" style="background:#0f766e">도윤</span></td></tr>
+              <tr><td><span class="case-id">TC-247</span><span class="case-title">관리자 권한 위임 후 세션 즉시 반영</span></td><td><span class="pri pri-p1">P1</span></td><td><span class="badge badge-pass">PASS</span></td><td><span class="avatar avatar-sm" style="background:#334155">지훈</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== LIVE RUN ============================== -->
+    <section id="tab-live" class="tab-panel">
+      <div class="live-header">
+        <div class="row1">
+          <div>
+            <span class="live-tag"><span class="live-dot"></span>LIVE</span>
+            <h2 style="margin-top:8px;">결제 모듈 회귀 테스트 · 2026년 8월 스프린트</h2>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="avatar-stack">
+              <span class="avatar online" style="background:#0f766e">도윤</span>
+              <span class="avatar online" style="background:#b45309">서연</span>
+              <span class="avatar online" style="background:#334155">지훈</span>
+            </div>
+            <span style="font-size:12.5px; color:var(--text-muted);">3명 함께 실행 중</span>
+          </div>
+        </div>
+        <div class="row2">
+          <span class="progress-label" id="live-progress-label">12 / 20 완료 (60%)</span>
+          <div class="progress-track light" style="flex:1;"><div class="progress-fill" id="live-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="live-layout">
+        <div>
+          <div class="case-row" data-case="TC-301">
+            <div class="info"><div class="title">TC-301 · 카드 등록 시 카드사 응답 지연 처리</div><div class="sub">P0 · 박지훈 실행 중</div></div>
+            <div class="actions">
+              <button class="act-btn pass" title="Pass"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></button>
+              <button class="act-btn fail" title="Fail"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+              <button class="act-btn blocked" title="Blocked"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8"/></svg></button>
+              <button class="act-btn skip" title="Skip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5l6 7-6 7M13 5l6 7-6 7"/></svg></button>
+            </div>
+          </div>
+
+          <div class="case-row" data-case="TC-302">
+            <div class="info"><div class="title">TC-302 · 결제 완료 후 영수증 이메일 발송</div><div class="sub">P1</div></div>
+            <div class="actions">
+              <button class="act-btn pass is-set" title="Pass"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></button>
+              <button class="act-btn fail" title="Fail"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+              <button class="act-btn blocked" title="Blocked"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8"/></svg></button>
+              <button class="act-btn skip" title="Skip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5l6 7-6 7M13 5l6 7-6 7"/></svg></button>
+            </div>
+          </div>
+
+          <div class="case-row" data-case="TC-303">
+            <div class="info"><div class="title">TC-303 · 정기결제 실패 3회 시 구독 자동 해지</div><div class="sub">P0</div></div>
+            <div class="actions">
+              <button class="act-btn pass" title="Pass"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></button>
+              <button class="act-btn fail is-set" title="Fail"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+              <button class="act-btn blocked" title="Blocked"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8"/></svg></button>
+              <button class="act-btn skip" title="Skip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5l6 7-6 7M13 5l6 7-6 7"/></svg></button>
+            </div>
+          </div>
+
+          <div class="case-row" data-case="TC-304">
+            <div class="info"><div class="title">TC-304 · 환불 요청 후 잔액 즉시 반영</div><div class="sub">P1</div></div>
+            <div class="actions">
+              <button class="act-btn pass" title="Pass"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></button>
+              <button class="act-btn fail" title="Fail"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+              <button class="act-btn blocked" title="Blocked"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8"/></svg></button>
+              <button class="act-btn skip" title="Skip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5l6 7-6 7M13 5l6 7-6 7"/></svg></button>
+            </div>
+          </div>
+
+          <div class="case-row" data-case="TC-305">
+            <div class="info"><div class="title">TC-305 · 쿠폰 중복 적용 방지 검증</div><div class="sub">P2</div></div>
+            <div class="actions">
+              <button class="act-btn pass" title="Pass"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></button>
+              <button class="act-btn fail" title="Fail"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+              <button class="act-btn blocked" title="Blocked"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8"/></svg></button>
+              <button class="act-btn skip is-set" title="Skip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5l6 7-6 7M13 5l6 7-6 7"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="feed-panel">
+          <h3><span class="live-dot"></span>실시간 활동</h3>
+          <div class="feed-list" id="feed-list">
+            <div class="feed-item"><b>이서연</b>님이 TC-302를 PASS 처리했습니다<div class="t">방금</div></div>
+            <div class="feed-item"><b>최유나</b>님이 TC-303을 FAIL 처리했습니다<div class="t">2분 전</div></div>
+            <div class="feed-item"><b>박지훈</b>님이 TC-301 실행을 시작했습니다<div class="t">3분 전</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== MEMBERS / AUDIT ============================== -->
+    <section id="tab-audit" class="tab-panel">
+      <div class="section-title"><h2>멤버 · 감사로그</h2><span class="sub">5명의 멤버</span></div>
+
+      <div class="members-layout">
+        <div class="card card-pad">
+          <div class="member-row">
+            <span class="avatar" style="background:#334155">관리</span>
+            <div class="who"><div class="name">관리자</div><div class="email">admin</div></div>
+            <span class="role-badge role-owner">Owner</span>
+            <span class="last">방금</span>
+          </div>
+          <div class="member-row">
+            <span class="avatar" style="background:#0f766e">도윤</span>
+            <div class="who"><div class="name">김도윤</div><div class="email">doyun@handfeo.dev</div></div>
+            <span class="role-badge">Admin</span>
+            <span class="last">2분 전</span>
+          </div>
+          <div class="member-row">
+            <span class="avatar" style="background:#b45309">서연</span>
+            <div class="who"><div class="name">이서연</div><div class="email">seoyeon@handfeo.dev</div></div>
+            <span class="role-badge">Member</span>
+            <span class="last">방금</span>
+          </div>
+          <div class="member-row">
+            <span class="avatar" style="background:#9f1239">유나</span>
+            <div class="who"><div class="name">최유나</div><div class="email">yuna@handfeo.dev</div></div>
+            <span class="role-badge">Member</span>
+            <span class="last">1시간 전</span>
+          </div>
+          <div class="member-row">
+            <span class="avatar" style="background:#475569">민재</span>
+            <div class="who"><div class="name">정민재</div><div class="email">minjae@handfeo.dev</div></div>
+            <span class="role-badge">Viewer</span>
+            <span class="last">어제</span>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="audit-list" id="audit-list">
+            <div class="audit-item"><span class="dot"></span><div class="body"><b>박지훈</b>님이 TC-301 실행을 시작했습니다<div class="time">방금</div></div></div>
+            <div class="audit-item"><span class="dot"></span><div class="body"><b>이서연</b>님이 TC-302를 PASS 처리했습니다<div class="time">2분 전</div></div></div>
+            <div class="audit-item"><span class="dot"></span><div class="body"><b>최유나</b>님이 TC-303을 FAIL 처리하고 버그를 등록했습니다<div class="time">4분 전</div></div></div>
+            <div class="audit-item"><span class="dot"></span><div class="body"><b>정민재</b>님이 결제 모듈 회귀 스위트에 초대되었습니다<div class="time">32분 전</div></div></div>
+            <div class="audit-item"><span class="dot"></span><div class="body"><b>관리자</b>님이 김도윤을 Admin으로 승격했습니다<div class="time">1시간 전</div></div></div>
+            <div class="audit-item"><span class="dot"></span><div class="body"><b>김도윤</b>님이 새 스위트 "알림"을 생성했습니다<div class="time">어제</div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  /* 화면 전환: 로그인 -> 앱, 사이드바 탭 전환 */
+  var loginScreen = document.getElementById('screen-login');
+  var appScreen = document.getElementById('screen-app');
+
+  function enterApp(){
+    loginScreen.classList.remove('active');
+    appScreen.classList.add('active');
+    requestAnimationFrame(function(){
+      var fill = document.getElementById('dash-live-fill');
+      if(fill) fill.style.transform = 'scaleX(0.6)';
+      var liveFill = document.getElementById('live-fill');
+      if(liveFill) liveFill.style.transform = 'scaleX(0.6)';
+    });
+  }
+  document.getElementById('demo-login-btn').addEventListener('click', enterApp);
+  document.getElementById('login-form').addEventListener('submit', function(e){ e.preventDefault(); enterApp(); });
+
+  var navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      navItems.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  /* 조직 선택 -> 대시보드 숫자 갱신 (멀티테넌시 증거) */
+  var orgData = {
+    handfeo:   { title:'한발더 스튜디오 · 대시보드', bugs:'23', pass:'87.4%', total:'482' },
+    greenlight:{ title:'그린라이트 QA · 대시보드',   bugs:'7',  pass:'94.1%', total:'156' },
+    nova:      { title:'노바 테크 · 대시보드',       bugs:'41', pass:'76.8%', total:'930' }
+  };
+  document.getElementById('org-picker').addEventListener('change', function(e){
+    var d = orgData[e.target.value];
+    document.getElementById('dash-org-title').textContent = d.title;
+    document.getElementById('kpi-bugs').textContent = d.bugs;
+    document.getElementById('kpi-pass').textContent = d.pass;
+    document.getElementById('kpi-total').textContent = d.total;
+  });
+
+  /* 실시간 실행: Pass/Fail/Blocked/Skip 클릭 처리 */
+  var doneCount = 12, totalCount = 20;
+  var actors = ['김도윤','이서연','박지훈','최유나'];
+
+  function pushFeed(html){
+    var list = document.getElementById('feed-list');
+    var item = document.createElement('div');
+    item.className = 'feed-item';
+    item.innerHTML = html + '<div class="t">방금</div>';
+    list.insertBefore(item, list.firstChild);
+    while(list.children.length > 6) list.removeChild(list.lastChild);
+  }
+
+  document.querySelectorAll('.case-row .act-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var row = btn.closest('.case-row');
+      var wasSet = row.querySelector('.act-btn.is-set');
+      row.querySelectorAll('.act-btn').forEach(function(b){ b.classList.remove('is-set'); });
+      btn.classList.add('is-set');
+
+      row.classList.remove('just-updated');
+      void row.offsetWidth;
+      row.classList.add('just-updated');
+
+      if(!wasSet){
+        doneCount = Math.min(totalCount, doneCount + 1);
+        var pct = Math.round((doneCount/totalCount)*100);
+        document.getElementById('live-progress-label').textContent = doneCount + ' / ' + totalCount + ' 완료 (' + pct + '%)';
+        document.getElementById('live-fill').style.transform = 'scaleX(' + (doneCount/totalCount) + ')';
+      }
+
+      var label = btn.classList.contains('pass') ? 'PASS' : btn.classList.contains('fail') ? 'FAIL' : btn.classList.contains('blocked') ? 'BLOCKED' : 'SKIP';
+      var caseId = row.dataset.case;
+      var actor = actors[Math.floor(Math.random()*actors.length)];
+      pushFeed('<b>' + actor + '</b>님이 ' + caseId + '를 ' + label + ' 처리했습니다');
+    });
+  });
+
+  /* 감사로그: 새 항목 슬라이드인 (실시간 스트림 흉내) */
+  var auditEvents = [
+    '<b>김도윤</b>님이 TC-118을 PASS 처리했습니다',
+    '<b>정민재</b>님이 결제 스위트 코멘트를 남겼습니다',
+    '<b>최유나</b>님이 새 버그를 등록했습니다',
+    '<b>이서연</b>님이 TC-231을 SKIP 처리했습니다'
+  ];
+  var ai = 0;
+  setInterval(function(){
+    var list = document.getElementById('audit-list');
+    var item = document.createElement('div');
+    item.className = 'audit-item is-new';
+    item.innerHTML = '<span class="dot"></span><div class="body">' + auditEvents[ai % auditEvents.length] + '<div class="time">방금</div></div>';
+    list.insertBefore(item, list.firstChild);
+    while(list.children.length > 9) list.removeChild(list.lastChild);
+    ai++;
+  }, 6000);
+</script>

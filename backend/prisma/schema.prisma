@@ -1,0 +1,10 @@
+// Prisma 스키마 — DATA-MODEL.md 기준으로 C1에서 implementer가 전체 모델을 채운다.
+// 지금은 datasource/generator만 있는 최소 골격.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

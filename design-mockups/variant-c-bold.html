@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<!--
+  runboard - "Audit Terminal" 목업 (variant-c-bold)
+  멀티테넌트 QA 테스트 케이스/실행 관리 도구의 정적 HTML 목업.
+  화면 5개(로그인/조직 대시보드/스위트-케이스/실시간 실행/멤버-감사로그)를
+  탭 전환으로 오가는 자기완결형 단일 파일. 외부 리소스 의존 없음.
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>runboard - Audit Terminal (variant-c-bold)</title>
+<style>
+  :root{
+    --ink:#0b0e13;
+    --paper:#eef1f6;
+    --paper-raised:#ffffff;
+    --paper-line: rgba(11,14,19,0.08);
+    --paper-line-strong: rgba(11,14,19,0.16);
+    --accent:#2748ff;
+    --accent-ink:#0d1c8a;
+    --accent-tint:#e2e7ff;
+    --pass:#127a4a;
+    --pass-tint:#e1f3ea;
+    --fail:#b5231f;
+    --fail-tint:#fbe6e5;
+    --blocked:#a85a06;
+    --blocked-tint:#faecd8;
+    --skip:#4b5563;
+    --skip-tint:#e7e9ec;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --radius:0px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      repeating-linear-gradient(0deg, var(--paper-line) 0, var(--paper-line) 1px, transparent 1px, transparent 64px),
+      repeating-linear-gradient(90deg, var(--paper-line) 0, var(--paper-line) 1px, transparent 1px, transparent 64px),
+      var(--paper);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    min-height:100dvh;
+  }
+
+  ::selection{ background:var(--accent); color:#fff; }
+
+  /* ---------- persistent page frame (blueprint registration marks) ---------- */
+  .frame-mark{
+    position:fixed;
+    width:22px; height:22px;
+    pointer-events:none;
+    z-index:5;
+    opacity:0.55;
+  }
+  .frame-mark::before, .frame-mark::after{
+    content:""; position:absolute; background:var(--ink);
+  }
+  .frame-mark::before{ width:100%; height:1.5px; top:50%; transform:translateY(-50%); }
+  .frame-mark::after{ height:100%; width:1.5px; left:50%; transform:translateX(-50%); }
+  .frame-mark.tl{ top:14px; left:14px; }
+  .frame-mark.tr{ top:14px; right:14px; }
+  .frame-mark.bl{ bottom:14px; left:14px; }
+  .frame-mark.br{ bottom:14px; right:14px; }
+
+  /* ---------- top bar / tab nav ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px;
+    padding:0 24px;
+    height:60px;
+    background:var(--paper-raised);
+    border-bottom:2px solid var(--ink);
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-weight:800; letter-spacing:-0.02em; font-size:18px;
+    white-space:nowrap;
+  }
+  .brand .dot{ width:9px; height:9px; background:var(--accent); flex:none; }
+  .tabs{
+    display:flex; gap:2px; overflow-x:auto; scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tab-btn{
+    font-family:var(--mono);
+    font-size:12px; font-weight:700; letter-spacing:0.02em;
+    padding:9px 14px;
+    background:transparent; color:var(--ink);
+    border:1.5px solid transparent;
+    cursor:pointer; white-space:nowrap;
+    transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .tab-btn:hover{ border-color:var(--paper-line-strong); }
+  .tab-btn:active{ transform:translateY(1px); }
+  .tab-btn[aria-current="true"]{
+    background:var(--ink); color:#fff; border-color:var(--ink);
+  }
+  .topbar-right{ display:flex; align-items:center; gap:10px; flex:none; }
+  .who-chip{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 10px; border:1.5px solid var(--ink); font-size:11px; font-weight:700;
+  }
+  .who-chip .sq-avatar{ width:20px; height:20px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; }
+
+  main{ max-width:1360px; margin:0 auto; padding:40px 24px 96px; }
+
+  .screen{ display:none; animation:fade-up 0.4s cubic-bezier(0.16,1,0.3,1); }
+  .screen.active{ display:block; }
+  @keyframes fade-up{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+  @media (prefers-reduced-motion:reduce){
+    .screen{ animation:none; }
+    *{ transition:none !important; animation-duration:0.001ms !important; }
+  }
+
+  h1,h2,h3{ margin:0; font-weight:800; letter-spacing:-0.02em; }
+  p{ margin:0; }
+  a{ color:inherit; }
+  button{ font-family:var(--mono); cursor:pointer; }
+  input, select{ font-family:var(--mono); }
+
+  .panel-label{
+    font-size:11px; font-weight:800; letter-spacing:0.06em;
+    color:var(--ink); text-transform:uppercase;
+    padding-bottom:10px; margin-bottom:16px;
+    border-bottom:2px solid var(--ink);
+  }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:1.5px solid var(--ink);
+    padding:12px 18px;
+    font-size:13px; font-weight:700; letter-spacing:0.01em;
+    background:var(--paper-raised); color:var(--ink);
+    transition:transform 0.12s ease, background 0.15s ease, color 0.15s ease;
+  }
+  .btn:hover{ transform:translateY(-1px); }
+  .btn:active{ transform:translateY(0) scale(0.98); }
+  .btn-primary{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .btn-accent{ background:var(--accent); color:#fff; border-color:var(--accent-ink); }
+  .btn-block{ width:100%; }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:3px 8px; font-size:10.5px; font-weight:800; letter-spacing:0.03em;
+    border:1.5px solid currentColor;
+  }
+  .badge-pass{ color:var(--pass); background:var(--pass-tint); }
+  .badge-fail{ color:var(--fail); background:var(--fail-tint); }
+  .badge-blocked{ color:var(--blocked); background:var(--blocked-tint); }
+  .badge-skip{ color:var(--skip); background:var(--skip-tint); }
+  .badge-p0{ color:var(--fail); background:var(--fail-tint); }
+  .badge-p1{ color:var(--blocked); background:var(--blocked-tint); }
+  .badge-p2{ color:var(--accent-ink); background:var(--accent-tint); }
+  .badge-p3{ color:var(--skip); background:var(--skip-tint); }
+  .badge-role{ color:var(--ink); background:#fff; }
+
+  svg.icon{ width:16px; height:16px; flex:none; stroke:currentColor; stroke-width:1.6; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* ================= SCREEN 1: LOGIN ================= */
+  #screen-login main-inner{ display:block; }
+  .login-shell{
+    min-height:calc(100dvh - 60px);
+    display:grid; grid-template-columns:1.4fr 1fr;
+    margin:-40px -24px;
+  }
+  @media (max-width:860px){ .login-shell{ grid-template-columns:1fr; } }
+
+  .login-side{
+    background:var(--ink); color:var(--paper);
+    position:relative; overflow:hidden;
+    padding:64px 56px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 48px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 48px);
+  }
+  .login-side .side-top{ font-size:11px; font-weight:700; letter-spacing:0.08em; opacity:0.6; }
+  .login-side .side-mid h1{
+    font-size:clamp(48px, 7vw, 84px);
+    color:#fff; line-height:0.95; margin-bottom:20px;
+  }
+  .login-side .side-mid p{ max-width:46ch; font-size:14px; color:rgba(238,241,246,0.72); line-height:1.6; }
+  .readouts{ display:flex; gap:28px; flex-wrap:wrap; font-size:11px; font-weight:700; opacity:0.75; }
+  .readouts span{ display:block; }
+  .readouts .v{ color:var(--accent-tint); font-size:15px; margin-top:4px; }
+
+  .login-form-wrap{
+    display:flex; align-items:center; justify-content:center;
+    padding:48px 32px;
+  }
+  .login-box{
+    width:100%; max-width:380px;
+    border:2px solid var(--ink);
+    background:var(--paper-raised);
+    padding:36px;
+  }
+  .login-box h2{ font-size:18px; margin-bottom:6px; }
+  .login-box .sub{ font-size:12px; color:#5b6472; margin-bottom:28px; }
+  .field{ margin-bottom:18px; }
+  .field label{ display:block; font-size:11px; font-weight:700; letter-spacing:0.04em; margin-bottom:6px; }
+  .field input{
+    width:100%; padding:11px 12px; font-size:13px;
+    border:1.5px solid var(--ink); background:#fff; color:var(--ink);
+  }
+  .field input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .field .helper{ font-size:10.5px; color:#6b7280; margin-top:5px; }
+
+  .divider-row{ display:flex; align-items:center; gap:12px; margin:22px 0; }
+  .divider-row .line{ flex:1; height:1.5px; background:var(--paper-line-strong); }
+  .divider-row span{ font-size:10.5px; font-weight:700; color:#7a8290; }
+
+  .demo-helper{ text-align:center; font-size:11px; color:#5b6472; margin-top:10px; }
+
+  /* ================= DASHBOARD GRID ================= */
+  .dash-toprow{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:32px; }
+  .org-select-wrap{ position:relative; }
+  .org-select-wrap select{
+    appearance:none; -webkit-appearance:none;
+    border:1.5px solid var(--ink); background:#fff;
+    padding:10px 34px 10px 12px; font-size:13px; font-weight:700;
+    min-width:220px;
+  }
+  .org-select-wrap::after{
+    content:"▾"; position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    font-size:11px; pointer-events:none;
+  }
+
+  .dash-grid{ display:grid; grid-template-columns:1.7fr 1fr; gap:24px; margin-bottom:24px; }
+  @media (max-width:920px){ .dash-grid{ grid-template-columns:1fr; } }
+
+  .panel{ border:1.5px solid var(--ink); background:var(--paper-raised); padding:24px; }
+
+  .chart-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:14px; }
+  .chart-head .big{ font-size:34px; font-weight:800; letter-spacing:-0.02em; }
+  .chart-head .delta{ font-size:12px; font-weight:700; color:var(--pass); }
+
+  .stack-col{ display:flex; flex-direction:column; gap:24px; }
+  .stat-block .num{ font-size:44px; font-weight:800; letter-spacing:-0.03em; line-height:1; }
+  .stat-block .num-sub{ font-size:11.5px; color:var(--fail); font-weight:700; margin-top:8px; }
+
+  .run-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; }
+  .run-row + .run-row{ border-top:1px solid var(--paper-line); }
+  .run-row .rname{ font-size:12.5px; font-weight:700; }
+  .run-row .rsuite{ font-size:10.5px; color:#6b7280; }
+  .run-row .rtime{ font-size:10.5px; color:#8a90a0; flex:none; }
+
+  .strip{ display:flex; border:1.5px solid var(--ink); }
+  .strip-cell{ flex:1; padding:20px 24px; }
+  .strip-cell + .strip-cell{ border-left:1.5px solid var(--paper-line-strong); }
+  .strip-cell .k{ font-size:10.5px; font-weight:800; letter-spacing:0.05em; color:#6b7280; margin-bottom:8px; }
+  .strip-cell .v{ font-size:24px; font-weight:800; letter-spacing:-0.02em; }
+  @media (max-width:760px){ .strip{ flex-wrap:wrap; } .strip-cell{ flex:1 1 50%; border-left:none; border-top:1.5px solid var(--paper-line-strong); } }
+
+  /* ================= SUITES / CASES ================= */
+  .suite-shell{ display:grid; grid-template-columns:280px 1fr; gap:0; border:1.5px solid var(--ink); }
+  @media (max-width:820px){ .suite-shell{ grid-template-columns:1fr; } }
+  .tree{ border-right:1.5px solid var(--ink); padding:20px; background:var(--paper-raised); }
+  @media (max-width:820px){ .tree{ border-right:none; border-bottom:1.5px solid var(--ink); } }
+  .tree-folder{ margin-bottom:4px; }
+  .tree-folder > .tf-head{
+    display:flex; align-items:center; gap:8px; padding:8px 6px;
+    font-size:12px; font-weight:700; cursor:pointer; background:none; border:none; width:100%; text-align:left; color:var(--ink);
+  }
+  .tree-folder > .tf-head:hover{ background:var(--paper); }
+  .tree-folder .tf-count{ margin-left:auto; font-size:10px; color:#8a90a0; font-weight:700; }
+  .tree-items{ padding-left:26px; border-left:1.5px dashed var(--paper-line-strong); margin-left:10px; }
+  .tree-items.collapsed{ display:none; }
+  .tree-item{ padding:6px 4px; font-size:11.5px; color:#454c58; cursor:pointer; }
+  .tree-item:hover{ color:var(--ink); }
+  .tree-item.is-active{ color:var(--accent-ink); font-weight:700; }
+
+  .case-list{ padding:8px 0; background:var(--paper-raised); }
+  .case-group-head{
+    padding:10px 24px; font-size:11px; font-weight:800; letter-spacing:0.05em; color:#6b7280;
+    background:var(--paper); border-bottom:1.5px solid var(--paper-line-strong); border-top:1.5px solid var(--paper-line-strong);
+  }
+  .case-row{ display:flex; align-items:center; gap:14px; padding:14px 24px; }
+  .case-row:hover{ background:var(--paper); }
+  .case-row .ctitle{ font-size:13px; font-weight:600; flex:1; min-width:0; }
+  .case-row .cmeta{ display:flex; align-items:center; gap:8px; flex:none; }
+  .case-row .cid{ font-size:10.5px; color:#9aa1ad; flex:none; width:56px; }
+
+  /* ================= LIVE EXECUTION ================= */
+  .exec-head{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:8px; }
+  .exec-title{ font-size:20px; }
+  .live-chip{ display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:0.04em; border:1.5px solid var(--pass); color:var(--pass); background:var(--pass-tint); padding:6px 10px; }
+  .live-dot{ width:8px; height:8px; border-radius:50%; background:var(--pass); animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
+  @media (prefers-reduced-motion:reduce){ .live-dot{ animation:none; } }
+
+  .progress-wrap{ margin:18px 0 32px; }
+  .progress-meta{ display:flex; justify-content:space-between; font-size:11px; font-weight:700; margin-bottom:8px; }
+  .progress-track{ height:16px; border:1.5px solid var(--ink); background:#fff; position:relative;
+    background-image:repeating-linear-gradient(90deg, var(--paper-line-strong) 0, var(--paper-line-strong) 1px, transparent 1px, transparent 20px); }
+  .progress-fill{ height:100%; background:var(--accent); width:0%; transition:width 0.3s cubic-bezier(0.16,1,0.3,1); }
+
+  .participants{ display:flex; align-items:center; gap:8px; margin-bottom:28px; }
+  .p-avatar{ width:26px; height:26px; background:var(--ink); color:#fff; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; border:2px solid var(--paper-raised); margin-left:-8px; }
+  .p-avatar:first-child{ margin-left:0; }
+  .participants .p-label{ font-size:11px; color:#6b7280; margin-left:8px; }
+
+  .exec-row{ display:flex; align-items:center; gap:14px; padding:16px 20px; border:1.5px solid var(--ink); margin-bottom:-1.5px; background:var(--paper-raised); }
+  .exec-row .etitle{ flex:1; min-width:0; font-size:13px; font-weight:600; }
+  .exec-row .eid{ font-size:10.5px; color:#9aa1ad; width:52px; flex:none; }
+  .exec-actions{ display:flex; gap:6px; flex:none; }
+  .exec-actions button{
+    border:1.5px solid var(--paper-line-strong); background:#fff; color:#6b7280;
+    font-size:10.5px; font-weight:800; padding:7px 10px; letter-spacing:0.02em;
+    transition:all 0.12s ease;
+  }
+  .exec-actions button:hover{ transform:translateY(-1px); }
+  .exec-actions button.act-pass[data-on="1"]{ background:var(--pass); border-color:var(--pass); color:#fff; }
+  .exec-actions button.act-fail[data-on="1"]{ background:var(--fail); border-color:var(--fail); color:#fff; }
+  .exec-actions button.act-blocked[data-on="1"]{ background:var(--blocked); border-color:var(--blocked); color:#fff; }
+  .exec-actions button.act-skip[data-on="1"]{ background:var(--skip); border-color:var(--skip); color:#fff; }
+
+  /* ================= MEMBERS + AUDIT LOG ================= */
+  .section-block{ margin-bottom:56px; }
+  .members-grid{ display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:16px; }
+  @media (max-width:820px){ .members-grid{ grid-template-columns:1fr; } }
+  .member-card{ border:1.5px solid var(--ink); padding:20px; background:var(--paper-raised); }
+  .member-card.is-you{ background:var(--ink); color:#fff; }
+  .member-card .m-name{ font-size:15px; font-weight:800; margin-bottom:4px; }
+  .member-card.is-you .m-name{ color:#fff; }
+  .member-card .m-email{ font-size:11px; color:#7a8290; margin-bottom:14px; }
+  .member-card.is-you .m-email{ color:rgba(238,241,246,0.6); }
+  .member-card .m-orgs{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .org-chip{ font-size:10px; font-weight:700; border:1px solid currentColor; padding:2px 7px; opacity:0.85; }
+
+  .audit-headline{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    padding:20px 0; margin:8px 0 24px; border-top:3px solid var(--ink); border-bottom:3px solid var(--ink);
+    position:relative;
+  }
+  .audit-headline h2{ font-size:clamp(30px,4vw,44px); }
+  .audit-headline .a-sub{ font-size:11.5px; color:#6b7280; font-weight:700; max-width:34ch; }
+  .audit-corner{ position:absolute; width:14px; height:14px; }
+  .audit-corner::before,.audit-corner::after{ content:""; position:absolute; background:var(--ink); }
+  .audit-corner::before{ width:100%; height:2px; top:0; }
+  .audit-corner::after{ width:2px; height:100%; left:0; }
+  .audit-corner.c-tl{ top:-3px; left:0; }
+  .audit-corner.c-tr{ top:-3px; right:0; transform:scaleX(-1); }
+
+  .log-feed{ position:relative; padding-left:28px; }
+  .log-feed::before{ content:""; position:absolute; left:6px; top:4px; bottom:4px; width:2px; background:var(--ink); }
+  .log-entry{ position:relative; padding:14px 0; }
+  .log-entry::before{ content:""; position:absolute; left:-27px; top:19px; width:9px; height:2px; background:var(--ink); }
+  .log-line{ font-size:12.5px; display:flex; gap:10px; flex-wrap:wrap; align-items:baseline; }
+  .log-ts{ color:#8a90a0; flex:none; }
+  .log-actor{ font-weight:700; flex:none; }
+  .log-verb{ font-weight:800; letter-spacing:0.03em; padding:1px 6px; flex:none; }
+  .log-verb.v-create{ color:var(--pass); background:var(--pass-tint); }
+  .log-verb.v-update{ color:var(--accent-ink); background:var(--accent-tint); }
+  .log-verb.v-delete{ color:var(--fail); background:var(--fail-tint); }
+  .log-verb.v-login{ color:var(--skip); background:var(--skip-tint); }
+  .log-verb.v-export{ color:var(--blocked); background:var(--blocked-tint); }
+  .log-target{ color:#454c58; }
+
+  .footer-note{ margin-top:64px; padding-top:20px; border-top:1.5px solid var(--paper-line-strong); font-size:10.5px; color:#8a90a0; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+</style>
+</head>
+<body>
+
+  <div class="frame-mark tl"></div>
+  <div class="frame-mark tr"></div>
+  <div class="frame-mark bl"></div>
+  <div class="frame-mark br"></div>
+
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span>RUNBOARD</div>
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn" data-target="screen-login" aria-current="true">01_LOGIN</button>
+      <button class="tab-btn" data-target="screen-dashboard">02_DASHBOARD</button>
+      <button class="tab-btn" data-target="screen-suites">03_SUITES</button>
+      <button class="tab-btn" data-target="screen-execution">04_EXEC</button>
+      <button class="tab-btn" data-target="screen-audit">05_AUDIT</button>
+    </nav>
+    <div class="topbar-right">
+      <div class="who-chip"><span class="sq-avatar">JP</span>박지영 · ADMIN</div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============ SCREEN 1: LOGIN ============ -->
+    <section class="screen active" id="screen-login">
+      <div class="login-shell">
+        <div class="login-side">
+          <div class="side-top">MULTI_TENANT_QA_CONTROL</div>
+          <div class="side-mid">
+            <h1>RUN<br>BOARD</h1>
+            <p>여러 조직의 테스트 스위트, 실행 기록, 감사 로그를 한 화면에서 통제한다. 팀별 권한과 이력이 분리된 채로 남는다.</p>
+          </div>
+          <div class="readouts">
+            <span>STATUS<span class="v">OPERATIONAL</span></span>
+            <span>ACTIVE ORGS<span class="v">12</span></span>
+            <span>RUNS TODAY<span class="v">341</span></span>
+          </div>
+        </div>
+        <div class="login-form-wrap">
+          <div class="login-box">
+            <h2>SIGN_IN</h2>
+            <p class="sub">계정으로 로그인하고 조직 작업 공간으로 이동합니다.</p>
+            <div class="field">
+              <label for="li-email">이메일</label>
+              <input id="li-email" type="text" placeholder="you@company.com" autocomplete="username">
+            </div>
+            <div class="field">
+              <label for="li-pass">비밀번호</label>
+              <input id="li-pass" type="password" placeholder="********" autocomplete="current-password">
+              <div class="helper">8자 이상, 대소문자 및 숫자 포함</div>
+            </div>
+            <button class="btn btn-primary btn-block" type="button" onclick="switchScreen('screen-dashboard')">로그인</button>
+
+            <div class="divider-row"><div class="line"></div><span>OR</span><div class="line"></div></div>
+
+            <button class="btn btn-accent btn-block" type="button" onclick="demoLogin()">회원가입 없이 둘러보기</button>
+            <p class="demo-helper">회원가입 없이 체험해 볼 수 있습니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 2: ORG DASHBOARD ============ -->
+    <section class="screen" id="screen-dashboard">
+      <div class="dash-toprow">
+        <div class="org-select-wrap">
+          <select aria-label="조직 선택">
+            <option>노바리테일</option>
+            <option>브릿지페이먼츠</option>
+            <option>오리진헬스케어</option>
+            <option>카고플로우 로지스틱스</option>
+          </select>
+        </div>
+        <div style="font-size:11px; color:#6b7280; font-weight:700;">최근 동기화 6분 전</div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="panel">
+          <div class="panel-label">PASS RATE TREND · 최근 14일</div>
+          <div class="chart-head">
+            <span class="big">92.3%</span>
+            <span class="delta">+3.1pt vs 이전 14일</span>
+          </div>
+          <svg viewBox="0 0 640 220" width="100%" height="220" role="img" aria-label="최근 14일 패스율 추이 차트">
+            <g stroke="#0b0e13" stroke-opacity="0.12" stroke-width="1">
+              <line x1="10" y1="30" x2="630" y2="30"></line>
+              <line x1="10" y1="70" x2="630" y2="70"></line>
+              <line x1="10" y1="110" x2="630" y2="110"></line>
+              <line x1="10" y1="150" x2="630" y2="150"></line>
+              <line x1="10" y1="190" x2="630" y2="190"></line>
+            </g>
+            <g fill="#8a90a0" font-size="9" font-family="ui-monospace, monospace">
+              <text x="0" y="33">100</text>
+              <text x="4" y="73">90</text>
+              <text x="4" y="113">80</text>
+              <text x="4" y="153">70</text>
+              <text x="4" y="193">60</text>
+            </g>
+            <polyline fill="none" stroke="#2748ff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"
+              points="20,145 66,131 112,153 158,113 205,93 251,108 297,80 343,99 389,76 436,84 482,66 528,83 574,59 620,71"></polyline>
+            <g fill="#2748ff">
+              <circle cx="620" cy="71" r="4"></circle>
+            </g>
+            <g fill="#8a90a0" font-size="9" font-family="ui-monospace, monospace">
+              <text x="10" y="210">08/11</text>
+              <text x="195" y="210">08/17</text>
+              <text x="380" y="210">08/22</text>
+              <text x="580" y="210">08/24</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="stack-col">
+          <div class="panel stat-block">
+            <div class="panel-label" style="margin-bottom:14px;">OPEN BUGS</div>
+            <div class="num">23</div>
+            <div class="num-sub">+3 이번 주</div>
+          </div>
+          <div class="panel">
+            <div class="panel-label" style="margin-bottom:6px;">RECENT RUNS</div>
+            <div class="run-row"><div><div class="rname">결제 회귀 #482</div><div class="rsuite">결제 회귀 스위트</div></div><span class="badge badge-pass">PASS 94%</span></div>
+            <div class="run-row"><div><div class="rname">모바일 스모크 #117</div><div class="rsuite">스모크 테스트</div></div><span class="badge badge-fail">FAIL 3</span></div>
+            <div class="run-row"><div><div class="rname">API 계약 #906</div><div class="rsuite">API 계약 테스트</div></div><span class="badge badge-pass">PASS 100%</span></div>
+            <div class="run-row"><div><div class="rname">관리자 콘솔 #55</div><div class="rsuite">관리자 콘솔</div></div><span class="badge badge-blocked">BLOCKED 2</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="strip">
+        <div class="strip-cell"><div class="k">TOTAL SUITES</div><div class="v">18</div></div>
+        <div class="strip-cell"><div class="k">TOTAL CASES</div><div class="v">1,204</div></div>
+        <div class="strip-cell"><div class="k">AUTOMATION</div><div class="v">61.4%</div></div>
+        <div class="strip-cell"><div class="k">AVG RUN TIME</div><div class="v">34m</div></div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 3: SUITES / CASES ============ -->
+    <section class="screen" id="screen-suites">
+      <div class="panel-label">TEST SUITES &amp; CASES</div>
+      <div class="suite-shell">
+        <div class="tree">
+          <div class="tree-folder">
+            <button class="tf-head" onclick="toggleFolder(this)">▾ 결제 회귀 <span class="tf-count">42</span></button>
+            <div class="tree-items">
+              <div class="tree-item is-active">체크아웃 - 게스트 결제 흐름</div>
+              <div class="tree-item">카카오페이 콜백 타임아웃 처리</div>
+              <div class="tree-item">환불 요청 - 부분 환불 금액 검증</div>
+            </div>
+          </div>
+          <div class="tree-folder">
+            <button class="tf-head" onclick="toggleFolder(this)">▾ 스모크 테스트 <span class="tf-count">16</span></button>
+            <div class="tree-items">
+              <div class="tree-item">로그인 - 소셜 로그인 3종</div>
+              <div class="tree-item">홈 화면 최초 로딩</div>
+            </div>
+          </div>
+          <div class="tree-folder">
+            <button class="tf-head" onclick="toggleFolder(this)">▾ API 계약 테스트 <span class="tf-count">54</span></button>
+            <div class="tree-items collapsed">
+              <div class="tree-item">주문 생성 스키마 검증</div>
+              <div class="tree-item">재고 차감 이벤트 순서</div>
+            </div>
+          </div>
+          <div class="tree-folder">
+            <button class="tf-head" onclick="toggleFolder(this)">▾ 모바일 회귀 <span class="tf-count">29</span></button>
+            <div class="tree-items collapsed">
+              <div class="tree-item">다국어 주문서 PDF 생성</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case-list">
+          <div class="case-group-head">결제 회귀 · 42건</div>
+          <div class="case-row">
+            <span class="cid">CASE-4821</span>
+            <span class="ctitle">체크아웃 - 게스트 결제 흐름</span>
+            <div class="cmeta"><span class="badge badge-p0">P0</span><span class="badge badge-pass">PASS</span></div>
+          </div>
+          <div class="case-row">
+            <span class="cid">CASE-4822</span>
+            <span class="ctitle">카카오페이 콜백 타임아웃 처리</span>
+            <div class="cmeta"><span class="badge badge-p1">P1</span><span class="badge badge-fail">FAIL</span></div>
+          </div>
+          <div class="case-row">
+            <span class="cid">CASE-4823</span>
+            <span class="ctitle">재고 0개 상품 장바구니 담기 차단</span>
+            <div class="cmeta"><span class="badge badge-p1">P1</span><span class="badge badge-pass">PASS</span></div>
+          </div>
+          <div class="case-row">
+            <span class="cid">CASE-4824</span>
+            <span class="ctitle">환불 요청 - 부분 환불 금액 검증</span>
+            <div class="cmeta"><span class="badge badge-p2">P2</span><span class="badge badge-blocked">BLOCKED</span></div>
+          </div>
+          <div class="case-row">
+            <span class="cid">CASE-4825</span>
+            <span class="ctitle">쿠폰 중복 적용 방지 로직</span>
+            <div class="cmeta"><span class="badge badge-p2">P2</span><span class="badge badge-skip">SKIP</span></div>
+          </div>
+          <div class="case-row">
+            <span class="cid">CASE-4826</span>
+            <span class="ctitle">배송지 3곳 초과 등록 시 안내 문구</span>
+            <div class="cmeta"><span class="badge badge-p3">P3</span><span class="badge badge-pass">PASS</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 4: LIVE EXECUTION ============ -->
+    <section class="screen" id="screen-execution">
+      <div class="exec-head">
+        <h2 class="exec-title">결제 회귀 #483 실행 중</h2>
+        <span class="live-chip"><span class="live-dot"></span>LIVE · 3 참여 중</span>
+      </div>
+
+      <div class="participants">
+        <span class="p-avatar">JP</span>
+        <span class="p-avatar">DY</span>
+        <span class="p-avatar">MW</span>
+        <span class="p-label">박지영, 이도윤, Marcus Webb 이 함께 실행 중</span>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-meta"><span>진행률</span><span id="progress-text">0 / 6 완료</span></div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <div id="exec-rows">
+        <div class="exec-row">
+          <span class="eid">4821</span>
+          <span class="etitle">체크아웃 - 게스트 결제 흐름</span>
+          <div class="exec-actions">
+            <button class="act-pass" onclick="mark(this,'pass')">PASS</button>
+            <button class="act-fail" onclick="mark(this,'fail')">FAIL</button>
+            <button class="act-blocked" onclick="mark(this,'blocked')">BLOCKED</button>
+            <button class="act-skip" onclick="mark(this,'skip')">SKIP</button>
+          </div>
+        </div>
+        <div class="exec-row">
+          <span class="eid">4822</span>
+          <span class="etitle">카카오페이 콜백 타임아웃 처리</span>
+          <div class="exec-actions">
+            <button class="act-pass" onclick="mark(this,'pass')">PASS</button>
+            <button class="act-fail" onclick="mark(this,'fail')">FAIL</button>
+            <button class="act-blocked" onclick="mark(this,'blocked')">BLOCKED</button>
+            <button class="act-skip" onclick="mark(this,'skip')">SKIP</button>
+          </div>
+        </div>
+        <div class="exec-row">
+          <span class="eid">4823</span>
+          <span class="etitle">재고 0개 상품 장바구니 담기 차단</span>
+          <div class="exec-actions">
+            <button class="act-pass" onclick="mark(this,'pass')">PASS</button>
+            <button class="act-fail" onclick="mark(this,'fail')">FAIL</button>
+            <button class="act-blocked" onclick="mark(this,'blocked')">BLOCKED</button>
+            <button class="act-skip" onclick="mark(this,'skip')">SKIP</button>
+          </div>
+        </div>
+        <div class="exec-row">
+          <span class="eid">4824</span>
+          <span class="etitle">환불 요청 - 부분 환불 금액 검증</span>
+          <div class="exec-actions">
+            <button class="act-pass" onclick="mark(this,'pass')">PASS</button>
+            <button class="act-fail" onclick="mark(this,'fail')">FAIL</button>
+            <button class="act-blocked" onclick="mark(this,'blocked')">BLOCKED</button>
+            <button class="act-skip" onclick="mark(this,'skip')">SKIP</button>
+          </div>
+        </div>
+        <div class="exec-row">
+          <span class="eid">4825</span>
+          <span class="etitle">쿠폰 중복 적용 방지 로직</span>
+          <div class="exec-actions">
+            <button class="act-pass" onclick="mark(this,'pass')">PASS</button>
+            <button class="act-fail" onclick="mark(this,'fail')">FAIL</button>
+            <button class="act-blocked" onclick="mark(this,'blocked')">BLOCKED</button>
+            <button class="act-skip" onclick="mark(this,'skip')">SKIP</button>
+          </div>
+        </div>
+        <div class="exec-row">
+          <span class="eid">4826</span>
+          <span class="etitle">배송지 3곳 초과 등록 시 안내 문구</span>
+          <div class="exec-actions">
+            <button class="act-pass" onclick="mark(this,'pass')">PASS</button>
+            <button class="act-fail" onclick="mark(this,'fail')">FAIL</button>
+            <button class="act-blocked" onclick="mark(this,'blocked')">BLOCKED</button>
+            <button class="act-skip" onclick="mark(this,'skip')">SKIP</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 5: MEMBERS + AUDIT LOG ============ -->
+    <section class="screen" id="screen-audit">
+      <div class="section-block">
+        <div class="panel-label">MEMBERS</div>
+        <div class="members-grid">
+          <div class="member-card is-you">
+            <div class="m-name">박지영</div>
+            <div class="m-email">jiyoung.park@runboard.io</div>
+            <span class="badge badge-role" style="border-color:#fff;color:#fff;background:transparent;">ADMIN</span>
+            <div class="m-orgs">
+              <span class="org-chip">노바리테일</span>
+              <span class="org-chip">브릿지페이먼츠</span>
+            </div>
+          </div>
+          <div class="member-card">
+            <div class="m-name">이도윤</div>
+            <div class="m-email">doyoon.lee@runboard.io</div>
+            <span class="badge badge-role">QA_LEAD</span>
+            <div class="m-orgs"><span class="org-chip">노바리테일</span></div>
+          </div>
+          <div class="member-card">
+            <div class="m-name">Marcus Webb</div>
+            <div class="m-email">marcus.webb@runboard.io</div>
+            <span class="badge badge-role">TESTER</span>
+            <div class="m-orgs"><span class="org-chip">노바리테일</span></div>
+          </div>
+          <div class="member-card">
+            <div class="m-name">최현우</div>
+            <div class="m-email">hyunwoo.choi@runboard.io</div>
+            <span class="badge badge-role">TESTER</span>
+            <div class="m-orgs"><span class="org-chip">오리진헬스케어</span></div>
+          </div>
+          <div class="member-card">
+            <div class="m-name">Sara Kim</div>
+            <div class="m-email">sara.kim@runboard.io</div>
+            <span class="badge badge-role">VIEWER</span>
+            <div class="m-orgs"><span class="org-chip">카고플로우 로지스틱스</span></div>
+          </div>
+          <div class="member-card">
+            <div class="m-name">김서연</div>
+            <div class="m-email">seoyeon.kim@runboard.io</div>
+            <span class="badge badge-role">QA_LEAD</span>
+            <div class="m-orgs">
+              <span class="org-chip">브릿지페이먼츠</span>
+              <span class="org-chip">오리진헬스케어</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="audit-headline">
+          <span class="audit-corner c-tl"></span>
+          <span class="audit-corner c-tr"></span>
+          <h2>AUDIT_LOG</h2>
+          <p class="a-sub">모든 조직의 생성, 수정, 삭제, 접근 이력이 변조 없이 기록됩니다.</p>
+        </div>
+
+        <div class="log-feed">
+          <div class="log-entry">
+            <div class="log-line">
+              <span class="log-ts">08/24 14:32:07</span>
+              <span class="log-actor">이도윤</span>
+              <span class="log-verb v-delete">DELETE</span>
+              <span class="log-target">CASE-4821 "체크아웃 - 게스트 결제 흐름" 삭제</span>
+            </div>
+          </div>
+          <div class="log-entry">
+            <div class="log-line">
+              <span class="log-ts">08/24 13:58:44</span>
+              <span class="log-actor">박지영</span>
+              <span class="log-verb v-create">CREATE</span>
+              <span class="log-target">스위트 "모바일 회귀"에 케이스 3건 추가</span>
+            </div>
+          </div>
+          <div class="log-entry">
+            <div class="log-line">
+              <span class="log-ts">08/24 11:20:12</span>
+              <span class="log-actor">Marcus Webb</span>
+              <span class="log-verb v-update">UPDATE</span>
+              <span class="log-target">CASE-4822 우선순위 P2 → P1 변경</span>
+            </div>
+          </div>
+          <div class="log-entry">
+            <div class="log-line">
+              <span class="log-ts">08/23 22:04:51</span>
+              <span class="log-actor">최현우</span>
+              <span class="log-verb v-login">LOGIN</span>
+              <span class="log-target">203.104.**.** 에서 로그인 성공</span>
+            </div>
+          </div>
+          <div class="log-entry">
+            <div class="log-line">
+              <span class="log-ts">08/23 18:47:33</span>
+              <span class="log-actor">Sara Kim</span>
+              <span class="log-verb v-export">EXPORT</span>
+              <span class="log-target">결제 회귀 스위트 실행 리포트 CSV 내보내기</span>
+            </div>
+          </div>
+          <div class="log-entry">
+            <div class="log-line">
+              <span class="log-ts">08/23 16:11:09</span>
+              <span class="log-actor">김서연</span>
+              <span class="log-verb v-update">UPDATE</span>
+              <span class="log-target">멤버 최현우 역할 VIEWER → TESTER 변경</span>
+            </div>
+          </div>
+          <div class="log-entry">
+            <div class="log-line">
+              <span class="log-ts">08/23 09:02:57</span>
+              <span class="log-actor">박지영</span>
+              <span class="log-verb v-create">CREATE</span>
+              <span class="log-target">신규 조직 "카고플로우 로지스틱스" 초대</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          <span>총 1,842건 중 최근 7건 표시</span>
+          <span>모든 시각은 KST 기준</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+<script>
+  // 탭 전환: data-target에 대응하는 screen만 표시하고 나머지는 숨긴다.
+  function switchScreen(id){
+    document.querySelectorAll('.screen').forEach(function(s){ s.classList.toggle('active', s.id === id); });
+    document.querySelectorAll('.tab-btn').forEach(function(b){
+      b.setAttribute('aria-current', b.dataset.target === id ? 'true' : 'false');
+    });
+  }
+  document.getElementById('tabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    switchScreen(btn.dataset.target);
+  });
+
+  // 데모 로그인: 회원가입 없이 즉시 조직 대시보드로 진입시키는 원클릭 체험 흐름.
+  function demoLogin(){
+    switchScreen('screen-dashboard');
+  }
+
+  // 폴더 트리 펼침/접힘 토글.
+  function toggleFolder(headBtn){
+    var items = headBtn.nextElementSibling;
+    items.classList.toggle('collapsed');
+    headBtn.firstChild.textContent = items.classList.contains('collapsed') ? '▸ ' : '▾ ';
+  }
+
+  // 실시간 실행 화면: 케이스별 결과 버튼 클릭 시 상태 반영 + 진행률 재계산.
+  var TOTAL_CASES = document.querySelectorAll('.exec-row').length;
+  function mark(btn, state){
+    var row = btn.closest('.exec-row');
+    row.querySelectorAll('.exec-actions button').forEach(function(b){ b.dataset.on = '0'; });
+    btn.dataset.on = '1';
+    updateProgress();
+  }
+  function updateProgress(){
+    var done = document.querySelectorAll('.exec-row .exec-actions button[data-on="1"]').length;
+    var pct = Math.round((done / TOTAL_CASES) * 100);
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = done + ' / ' + TOTAL_CASES + ' 완료';
+  }
+</script>
+
+</body>
+</html>

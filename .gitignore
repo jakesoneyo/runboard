@@ -1,0 +1,32 @@
+# --- Node (frontend/backend 공통) ---
+node_modules
+dist
+dist-ssr
+build
+coverage
+*.local
+.vercel
+
+# --- 환경변수 (절대 커밋 금지) ---
+.env
+.env.*
+!.env*.example
+
+# --- 로그 ---
+logs
+*.log
+npm-debug.log*
+
+# --- Prisma ---
+backend/prisma/migrations/dev.db
+
+# --- 에디터/OS ---
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
