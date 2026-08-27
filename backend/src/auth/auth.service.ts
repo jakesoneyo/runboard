@@ -3,8 +3,10 @@ import { JwtService } from '@nestjs/jwt';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { AuditService } from '../audit/audit.service';
 import { DomainException } from '../common/errors/domain-exception';
 import { PrismaService } from '../prisma/prisma.service';
+import { runAuditableTransaction } from '../prisma/tenant-transaction.service';
 import { LoginDto } from './dto/login.schema';
 import { RegisterDto } from './dto/register.schema';
 
@@ -29,6 +31,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -59,14 +62,34 @@ export class AuthService {
       ? await bcrypt.compare(dto.password, user.passwordHash)
       : false;
     if (!user || !passwordMatches) {
+      // 조직 미상 이벤트 — ARCHITECTURE.md 4장. 계정 존재 여부와 무관하게 시도한 이메일을 스냅샷한다.
+      await runAuditableTransaction(this.prisma, (tx) =>
+        this.audit.recordGlobal(tx, {
+          action: 'AUTH_LOGIN_FAILED',
+          targetType: 'USER',
+          targetId: user?.id,
+          actorId: user?.id ?? null,
+          actorEmail: dto.email,
+        }),
+      );
       throw new DomainException(
         401,
         'AUTH_INVALID_CREDENTIALS',
         '이메일 또는 비밀번호가 올바르지 않습니다.',
       );
     }
-    const tokens = await this.issueTokenPair(user);
     const memberships = await this.loadMemberships(user.id);
+    const tokens = await runAuditableTransaction(this.prisma, async (tx) => {
+      const pair = await this.issueTokenPair(user, undefined, tx);
+      await this.audit.recordGlobal(tx, {
+        action: 'AUTH_LOGIN_SUCCEEDED',
+        targetType: 'USER',
+        targetId: user.id,
+        actorId: user.id,
+        actorEmail: user.email,
+      });
+      return pair;
+    });
     return { user: this.toPublicUser(user), ...tokens, memberships };
   }
 
@@ -87,11 +110,20 @@ export class AuthService {
       );
     }
     if (stored.revokedAt) {
-      // 주의: 이 폐기는 $transaction 밖에서 커밋돼야 한다. 안에서 하고 뒤이어 throw하면
-      // Prisma interactive transaction이 통째로 롤백되어 "가족 전체 폐기"가 없었던 일이 된다(실제로 겪은 버그).
-      await this.prisma.refreshToken.updateMany({
-        where: { familyId: stored.familyId, revokedAt: null },
-        data: { revokedAt: new Date() },
+      // 주의: 이 폐기는 refresh를 새로 발급하는 $transaction과는 별개로, 그 자체로 완결된
+      // 작은 트랜잭션이어야 한다. throw 이후에도 롤백되지 않고 반드시 커밋돼 있어야
+      // "가족 전체 폐기"가 없었던 일이 되지 않는다(실제로 겪은 버그).
+      await runAuditableTransaction(this.prisma, async (tx) => {
+        await tx.refreshToken.updateMany({
+          where: { familyId: stored.familyId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        await this.audit.recordGlobal(tx, {
+          action: 'AUTH_REFRESH_REUSE_DETECTED',
+          targetType: 'USER',
+          targetId: stored.userId,
+          actorId: stored.userId,
+        });
       });
       throw new DomainException(
         401,

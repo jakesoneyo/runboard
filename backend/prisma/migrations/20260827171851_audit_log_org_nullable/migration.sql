@@ -1,0 +1,11 @@
+-- C2 설계 결정: AuditLog.organizationId를 nullable로 변경한다.
+-- 이유: ARCHITECTURE.md는 조직 미상 이벤트(로그인 성공/실패, refresh 재사용 탐지)도 감사로그로
+-- 남기라고 요구하는데, DATA-MODEL.md 원안은 NOT NULL이라 저장이 불가능했다(스키마 충돌).
+-- 조직 스코프 이벤트는 여전히 AuditService.record()가 타입 시그니처로 organizationId 필수를 강제한다.
+--
+-- 주의(구현 중 실제로 겪은 함정): 이 파일은 `prisma migrate dev --create-only`가 아니라 손으로 작성했다.
+-- `migrate dev`(non-create-only)를 이 스키마에서 그냥 돌리면 Prisma가 6장 SQL로 보강한 복합 FK
+-- (test_suites_parent_same_org_fkey, bug_reports_runcase_same_org_fkey)를 "drift"로 오인해
+-- 단일 컬럼 FK로 되돌려버린다(Prisma DSL이 그 제약을 모델로 인식하지 못하기 때문).
+-- 그래서 이후 마이그레이션은 항상 `--create-only`로 만들고 SQL을 직접 검토해서 추가해야 한다.
+ALTER TABLE "audit_logs" ALTER COLUMN "organizationId" DROP NOT NULL;

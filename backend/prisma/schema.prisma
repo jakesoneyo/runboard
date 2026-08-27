@@ -326,9 +326,13 @@ model BugReport {
 }
 
 // ───────── 감사 ─────────
+// organizationId는 의도적으로 nullable이다(C2 설계 결정, DATA-MODEL.md 원안은 NOT NULL이었으나 변경):
+// ARCHITECTURE.md는 조직 미상 이벤트(로그인 성공/실패, refresh 재사용 탐지)도 감사로그로 남기라고 요구하는데
+// 그 시점엔 아직 어느 조직에도 속하지 않은 요청이라 조직을 정할 수 없다. 대신 조직 스코프 이벤트는
+// AuditService.record()가(전역 이벤트는 recordGlobal()이) 타입 시그니처로 null 여부를 강제한다.
 model AuditLog {
   id             String          @id @default(uuid(7)) @db.Uuid
-  organizationId String          @db.Uuid
+  organizationId String?         @db.Uuid
   actorId        String?         @db.Uuid // 시스템 발생 이벤트는 null
   actorEmail     String? // 멤버 제거 후에도 "누구였는지" 보존(스냅샷)
   action         AuditAction
@@ -339,7 +343,7 @@ model AuditLog {
   userAgent      String?
   createdAt      DateTime        @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt(sort: Desc)]) // 기본 조회(커서 페이지네이션)
   @@index([organizationId, targetType, targetId]) // "이 케이스의 변경 이력"
