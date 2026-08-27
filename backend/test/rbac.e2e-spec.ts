@@ -102,6 +102,53 @@ describe('RBAC (e2e)', () => {
       const res = await authed(viewer).get(`/api/orgs/${org.id}/members`);
       expect(res.status).toBe(200);
     });
+
+    it.each([
+      ['VIEWER', () => viewer],
+      ['TESTER', () => tester],
+    ] as const)(
+      'QA_LEAD 미만(%s)은 POST /orgs/:orgId/suites에서 403',
+      async (_label, getUser) => {
+        const res = await authed(getUser())
+          .post(`/api/orgs/${org.id}/suites`)
+          .send({ name: '매트릭스 스위트' });
+        expect(res.status).toBe(403);
+        expect(typedBody<ErrorBody>(res).code).toBe('ORG_FORBIDDEN');
+      },
+    );
+
+    it('QA_LEAD는 POST /orgs/:orgId/suites 가 201', async () => {
+      const res = await authed(qaLead)
+        .post(`/api/orgs/${org.id}/suites`)
+        .send({ name: 'QA_LEAD 스위트' });
+      expect(res.status).toBe(201);
+    });
+
+    it.each([
+      ['VIEWER', () => viewer],
+      ['TESTER', () => tester],
+    ] as const)(
+      'QA_LEAD 미만(%s)은 POST /orgs/:orgId/cases에서 403',
+      async (_label, getUser) => {
+        const suite = await ctx.prisma.testSuite.create({
+          data: {
+            organizationId: org.id,
+            name: '매트릭스 케이스용 스위트',
+            createdById: admin.userId,
+          },
+        });
+        const res = await authed(getUser())
+          .post(`/api/orgs/${org.id}/cases`)
+          .send({
+            suiteId: suite.id,
+            title: '매트릭스 케이스',
+            steps: [{ order: 1, action: '확인' }],
+            expectedResult: 'OK',
+          });
+        expect(res.status).toBe(403);
+        expect(typedBody<ErrorBody>(res).code).toBe('ORG_FORBIDDEN');
+      },
+    );
   });
 
   // T-9/T-10(RUN_NOT_ASSIGNED, 배정 여부에 따른 기록 권한)은 실행(TestRun) 도메인이 생기는 C4에서 구현한다.

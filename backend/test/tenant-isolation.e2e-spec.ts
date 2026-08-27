@@ -65,7 +65,17 @@ describe('테넌트 격리 (e2e)', () => {
       expect(res.status).toBe(404);
     });
 
-    // suites/cases/runs/bugs 목록 GET은 C3~C5에서 라우트가 생기면 이 describe 블록에 추가한다.
+    it('suites', async () => {
+      const res = await asA().get(`/api/orgs/${orgB.id}/suites`);
+      expect(res.status).toBe(404);
+    });
+
+    it('cases', async () => {
+      const res = await asA().get(`/api/orgs/${orgB.id}/cases`);
+      expect(res.status).toBe(404);
+    });
+
+    // runs/bugs 목록 GET은 C4~C5에서 라우트가 생기면 이 describe 블록에 추가한다.
   });
 
   describe('T-2: 내 조직 경로 + 남의 조직 리소스 id는 전부 404이고 변경도 없다', () => {
@@ -99,6 +109,36 @@ describe('테넌트 격리 (e2e)', () => {
       });
       expect(stillPending?.status).toBe('PENDING');
     });
+
+    it('org A 경로로 org B의 케이스 id를 수정 시도하면 404, B의 케이스는 그대로다', async () => {
+      const suiteB = await ctx.prisma.testSuite.create({
+        data: {
+          organizationId: orgB.id,
+          name: 'B 스위트',
+          createdById: adminB.userId,
+        },
+      });
+      const caseB = await ctx.prisma.testCase.create({
+        data: {
+          organizationId: orgB.id,
+          suiteId: suiteB.id,
+          title: 'B 케이스',
+          steps: [{ order: 1, action: '확인' }],
+          expectedResult: 'OK',
+          createdById: adminB.userId,
+        },
+      });
+
+      const res = await asA()
+        .patch(`/api/orgs/${orgA.id}/cases/${caseB.id}`)
+        .send({ title: '탈취 시도' });
+      expect(res.status).toBe(404);
+
+      const stillOriginal = await ctx.prisma.testCase.findUnique({
+        where: { id: caseB.id },
+      });
+      expect(stillOriginal?.title).toBe('B 케이스');
+    });
   });
 
   describe('T-3: 목록 응답에 다른 조직 레코드가 단 1건도 섞이지 않는다', () => {
@@ -121,6 +161,71 @@ describe('테넌트 격리 (e2e)', () => {
       const emails = typedBody<{ email: string }[]>(res).map((i) => i.email);
       expect(emails).toContain('a-invitee@example.com');
       expect(emails).not.toContain('invitee@example.com'); // org B에서 만든 초대
+    });
+
+    it('suites 목록', async () => {
+      await api()
+        .post(`/api/orgs/${orgA.id}/suites`)
+        .set('Authorization', `Bearer ${adminA.accessToken}`)
+        .send({ name: 'A 스위트' });
+      await ctx.prisma.testSuite.create({
+        data: {
+          organizationId: orgB.id,
+          name: 'B 스위트 목록용',
+          createdById: adminB.userId,
+        },
+      });
+
+      const res = await asA().get(`/api/orgs/${orgA.id}/suites?tree=false`);
+      expect(res.status).toBe(200);
+      const names = typedBody<{ name: string }[]>(res).map((s) => s.name);
+      expect(names).toContain('A 스위트');
+      expect(names).not.toContain('B 스위트 목록용');
+    });
+
+    it('cases 목록', async () => {
+      const suiteA = await ctx.prisma.testSuite.create({
+        data: {
+          organizationId: orgA.id,
+          name: 'A 케이스용 스위트',
+          createdById: adminA.userId,
+        },
+      });
+      const suiteB = await ctx.prisma.testSuite.create({
+        data: {
+          organizationId: orgB.id,
+          name: 'B 케이스용 스위트',
+          createdById: adminB.userId,
+        },
+      });
+      await ctx.prisma.testCase.create({
+        data: {
+          organizationId: orgA.id,
+          suiteId: suiteA.id,
+          title: 'A 케이스',
+          steps: [{ order: 1, action: '확인' }],
+          expectedResult: 'OK',
+          createdById: adminA.userId,
+        },
+      });
+      await ctx.prisma.testCase.create({
+        data: {
+          organizationId: orgB.id,
+          suiteId: suiteB.id,
+          title: 'B 케이스',
+          steps: [{ order: 1, action: '확인' }],
+          expectedResult: 'OK',
+          createdById: adminB.userId,
+        },
+      });
+
+      const res = await asA().get(`/api/orgs/${orgA.id}/cases`);
+      expect(res.status).toBe(200);
+      const titles = typedBody<{ items: { title: string }[] }>(res).items.map(
+        (c) => c.title,
+      );
+      expect(titles).toContain('A 케이스');
+      expect(titles).not.toContain('B 케이스');
     });
   });
 
