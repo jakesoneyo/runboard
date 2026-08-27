@@ -321,7 +321,7 @@ model BugReport {
 // ───────── 감사 ─────────
 model AuditLog {
   id             String          @id @default(uuid(7)) @db.Uuid
-  organizationId String          @db.Uuid
+  organizationId String?         @db.Uuid           // C2에서 nullable로 변경 — 로그인 등 조직 미상 전역 이벤트는 null(AuditService.recordGlobal())
   actorId        String?         @db.Uuid           // 시스템 발생 이벤트는 null
   actorEmail     String?                            // 멤버 제거 후에도 "누구였는지" 보존(스냅샷)
   action         AuditAction
@@ -332,7 +332,7 @@ model AuditLog {
   userAgent      String?
   createdAt      DateTime        @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt(sort: Desc)])            // 기본 조회(커서 페이지네이션)
   @@index([organizationId, targetType, targetId])             // "이 케이스의 변경 이력"
