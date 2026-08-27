@@ -16,6 +16,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthController } from './health/health.controller';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SuitesModule } from './suites/suites.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     AuditModule,
     OrganizationsModule,
+    SuitesModule,
   ],
   controllers: [HealthController],
   providers: [
