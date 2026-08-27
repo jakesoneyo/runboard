@@ -1,10 +1,349 @@
-// Prisma 스키마 — DATA-MODEL.md 기준으로 C1에서 implementer가 전체 모델을 채운다.
-// 지금은 datasource/generator만 있는 최소 골격.
+// Prisma 스키마 — DATA-MODEL.md 3장 원안 그대로.
+// 테넌트 격리는 "모든 테넌트 테이블 organizationId 보유 + 부모 (id, organizationId) 복합 유니크 + 자식 복합 FK"로 강제한다(1장 참고).
 generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma 7: 커넥션 URL은 schema가 아니라 prisma.config.ts(CLI)와
+// PrismaService의 @prisma/adapter-pg(런타임)가 각각 담당한다.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+// ───────── enums ─────────
+enum Role {
+  ADMIN
+  QA_LEAD
+  TESTER
+  VIEWER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum CasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RunStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+}
+
+enum RunCaseResult {
+  PENDING
+  PASS
+  FAIL
+  BLOCKED
+  SKIPPED
+}
+
+enum BugSeverity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum BugStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  WONTFIX
+}
+
+enum AuditAction {
+  ORG_CREATED
+  MEMBER_INVITED
+  MEMBER_JOINED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+  SUITE_CREATED
+  SUITE_UPDATED
+  SUITE_DELETED
+  CASE_CREATED
+  CASE_UPDATED
+  CASE_DELETED
+  RUN_CREATED
+  RUN_STARTED
+  RUN_COMPLETED
+  RUN_ABORTED
+  RUN_ASSIGNEES_CHANGED
+  RUNCASE_RESULT_RECORDED
+  BUG_CREATED
+  BUG_STATUS_CHANGED
+  BUG_UPDATED
+  AUTH_LOGIN_SUCCEEDED
+  AUTH_LOGIN_FAILED
+  AUTH_REFRESH_REUSE_DETECTED
+}
+
+enum AuditTargetType {
+  ORGANIZATION
+  MEMBERSHIP
+  INVITATION
+  TEST_SUITE
+  TEST_CASE
+  TEST_RUN
+  TEST_RUN_CASE
+  BUG_REPORT
+  USER
+}
+
+// ───────── 전역(테넌트 아님) ─────────
+model User {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  email        String   @unique // 데모 계정만 'admin' 리터럴
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+  assignments   TestRunAssignee[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique // SHA-256. 원문은 저장하지 않는다
+  familyId  String    @db.Uuid // 회전 계열: 재사용 탐지 시 계열 전체 폐기
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// ───────── 테넌시 ─────────
+model Organization {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  memberships Membership[]
+  invitations Invitation[]
+  suites      TestSuite[]
+  runs        TestRun[]
+  bugs        BugReport[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  role           Role
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId]) // 요청마다 조회되는 핫 패스: (userId, orgId) 룩업
+  @@index([organizationId, role]) // 멤버 목록/역할 필터
+  @@map("memberships")
+}
+
+model Invitation {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String       @db.Uuid
+  email          String
+  role           Role
+  tokenHash      String       @unique // 초대 링크 토큰의 해시(메일 발송은 비범위)
+  status         InviteStatus @default(PENDING)
+  expiresAt      DateTime
+  invitedById    String       @db.Uuid
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, createdAt(sort: Desc)])
+  @@index([email, status])
+  @@map("invitations")
+}
+
+// ───────── 테스트 자산 ─────────
+model TestSuite {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  parentId       String?  @db.Uuid // 최대 3단계(앱에서 검증) + 6장 SQL에서 복합 FK 보강
+  name           String
+  description    String?
+  position       Int      @default(0)
+  createdById    String   @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       TestSuite?   @relation("SuiteTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     TestSuite[]  @relation("SuiteTree")
+  cases        TestCase[]
+
+  @@unique([id, organizationId]) // 자식(TestCase) 복합 FK 앵커
+  @@index([organizationId, parentId, position]) // 트리 렌더링 쿼리 1회로 해결
+  @@map("test_suites")
+}
+
+model TestCase {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String       @db.Uuid
+  suiteId        String       @db.Uuid
+  title          String
+  preconditions  String?
+  steps          Json // [{ order: number, action: string, expected?: string }]
+  expectedResult String
+  priority       CasePriority @default(MEDIUM)
+  createdById    String       @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // 복합 FK: 다른 조직의 스위트에 케이스를 꽂는 것이 DB 레벨에서 불가능
+  suite TestSuite @relation(fields: [suiteId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, suiteId, priority])
+  @@index([organizationId, updatedAt(sort: Desc)]) // "최근 수정된 케이스"
+  @@map("test_cases")
+}
+
+// ───────── 실행 ─────────
+model TestRun {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String
+  description    String?
+  status         RunStatus @default(PLANNED)
+  createdById    String    @db.Uuid
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // 비정규화 카운터: 결과 기록마다 COUNT(*) 집계를 돌지 않기 위해 같은 트랜잭션에서 증감시킨다
+  totalCount   Int @default(0)
+  passedCount  Int @default(0)
+  failedCount  Int @default(0)
+  blockedCount Int @default(0)
+  skippedCount Int @default(0)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runCases     TestRunCase[]
+  assignees    TestRunAssignee[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, createdAt(sort: Desc)]) // 대시보드 "최근 실행"
+  @@index([organizationId, status])
+  @@map("test_runs")
+}
+
+model TestRunCase {
+  id             String @id @default(uuid(7)) @db.Uuid
+  organizationId String @db.Uuid
+  testRunId      String @db.Uuid
+
+  // 실행 시점 스냅샷: 원본 케이스가 수정/삭제돼도 과거 실행 기록은 변하지 않아야 한다
+  sourceCaseId   String?       @db.Uuid // FK 없음(의도적) — 원본 삭제와 무관해야 하므로
+  title          String
+  steps          Json
+  expectedResult String
+  priority       CasePriority
+
+  result       RunCaseResult @default(PENDING)
+  comment      String?
+  recordedById String?       @db.Uuid
+  recordedAt   DateTime?
+  position     Int           @default(0)
+  createdAt    DateTime      @default(now())
+
+  testRun TestRun     @relation(fields: [testRunId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  bugs    BugReport[]
+
+  @@unique([id, organizationId])
+  @@unique([testRunId, sourceCaseId]) // 같은 실행에 같은 원본 케이스 중복 투입 방지
+  @@index([testRunId, position]) // 실행 화면 목록(정렬 포함)
+  @@index([testRunId, result]) // 결과 필터 / 재집계 복구용
+  @@index([organizationId, recordedAt(sort: Desc)]) // 조직 활동 피드
+  @@map("test_run_cases")
+}
+
+model TestRunAssignee {
+  organizationId String   @db.Uuid
+  testRunId      String   @db.Uuid
+  userId         String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  testRun TestRun @relation(fields: [testRunId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([testRunId, userId]) // 배정 여부 확인 = PK 룩업(가드 핫 패스)
+  @@index([userId]) // "내게 배정된 실행"
+  @@map("test_run_assignees")
+}
+
+// ───────── 결함 ─────────
+model BugReport {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  organizationId   String      @db.Uuid
+  testRunCaseId    String?     @db.Uuid // 6장 SQL에서 (testRunCaseId, organizationId) 복합 FK 보강
+  title            String
+  description      String
+  stepsToReproduce Json // RunCase 스냅샷에서 초안 생성 후 수정 가능
+  severity         BugSeverity @default(MAJOR)
+  status           BugStatus   @default(OPEN)
+  reportedById     String      @db.Uuid
+  assigneeId       String?     @db.Uuid
+  resolvedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runCase      TestRunCase? @relation(fields: [testRunCaseId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, createdAt(sort: Desc)]) // 목록 기본 정렬 + 상태 필터
+  @@index([organizationId, severity, status]) // 대시보드 "열린 버그(심각도별)"
+  @@index([testRunCaseId])
+  @@map("bug_reports")
+}
+
+// ───────── 감사 ─────────
+model AuditLog {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  organizationId String          @db.Uuid
+  actorId        String?         @db.Uuid // 시스템 발생 이벤트는 null
+  actorEmail     String? // 멤버 제거 후에도 "누구였는지" 보존(스냅샷)
+  action         AuditAction
+  targetType     AuditTargetType
+  targetId       String?         @db.Uuid
+  metadata       Json? // { field: [before, after] } 형태의 변경분만
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime        @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)]) // 기본 조회(커서 페이지네이션)
+  @@index([organizationId, targetType, targetId]) // "이 케이스의 변경 이력"
+  @@index([organizationId, actorId, createdAt(sort: Desc)]) // "이 사람이 한 일"
+  @@index([organizationId, action, createdAt(sort: Desc)]) // 액션 필터
+  @@map("audit_logs")
 }
