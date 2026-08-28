@@ -2,6 +2,7 @@
 import { execSync } from 'node:child_process';
 import * as path from 'node:path';
 import { INestApplication } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   PostgreSqlContainer,
@@ -18,6 +19,8 @@ export interface TestApp {
   container: StartedPostgreSqlContainer;
   /** tenant.extension.ts 등 DI 토큰을 직접 꺼내 검증해야 하는 스펙(tenant-extension.e2e-spec.ts)용. */
   moduleRef: TestingModule;
+  /** RunsGateway 소켓 e2e가 실제 포트에 io()로 접속해야 해서 필요하다(supertest는 포트 없이도 동작하지만 소켓은 아니다). */
+  url: string;
 }
 
 /**
@@ -53,10 +56,14 @@ export async function bootstrapTestApp(): Promise<TestApp> {
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   app.setGlobalPrefix('api', { exclude: ['health'] });
   app.useGlobalPipes(new ZodValidationPipe());
-  await app.init();
+  app.useWebSocketAdapter(new IoAdapter(app));
+  // socket.io-client가 실제 TCP 포트로 접속해야 하므로 init()이 아니라 listen(0)(임의 포트)을 쓴다.
+  // supertest는 이후에도 app.getHttpServer()로 동일하게 동작한다(listen 여부와 무관).
+  await app.listen(0);
 
   const prisma = moduleRef.get(PrismaService);
-  return { app, prisma, container, moduleRef };
+  const url = await app.getUrl();
+  return { app, prisma, container, moduleRef, url };
 }
 
 export async function teardownTestApp(ctx: TestApp): Promise<void> {
