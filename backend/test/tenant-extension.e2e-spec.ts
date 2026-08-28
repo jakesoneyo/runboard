@@ -131,4 +131,37 @@ describe('tenant.extension.ts (e2e, 컨트롤러 우회 직접 검증)', () => {
       }),
     ).rejects.toMatchObject({ code: 'P2003' });
   });
+
+  it('T-5(버그): DB 복합 FK가 다른 조직의 RunCase를 가리키는 버그를 거부한다', async () => {
+    const run = await ctx.prisma.testRun.create({
+      data: {
+        organizationId: orgA.id,
+        name: '스냅샷 실행',
+        createdById: userId,
+      },
+    });
+    const runCase = await ctx.prisma.testRunCase.create({
+      data: {
+        organizationId: orgA.id,
+        testRunId: run.id,
+        title: '스냅샷 케이스',
+        steps: [],
+        expectedResult: '기대값',
+        priority: 'MEDIUM',
+      },
+    });
+
+    await expect(
+      ctx.prisma.bugReport.create({
+        data: {
+          organizationId: orgB.id, // orgB를 자처하며 orgA의 RunCase를 가리키는 시도
+          testRunCaseId: runCase.id,
+          title: '크로스 테넌트 버그',
+          description: '설명',
+          stepsToReproduce: [],
+          reportedById: userId,
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'P2003' });
+  });
 });

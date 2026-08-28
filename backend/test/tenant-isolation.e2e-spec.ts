@@ -80,7 +80,10 @@ describe('테넌트 격리 (e2e)', () => {
       expect(res.status).toBe(404);
     });
 
-    // bugs 목록 GET은 C5에서 라우트가 생기면 이 describe 블록에 추가한다.
+    it('bugs', async () => {
+      const res = await asA().get(`/api/orgs/${orgB.id}/bugs`);
+      expect(res.status).toBe(404);
+    });
   });
 
   describe('T-2: 내 조직 경로 + 남의 조직 리소스 id는 전부 404이고 변경도 없다', () => {
@@ -231,6 +234,35 @@ describe('테넌트 격리 (e2e)', () => {
       );
       expect(titles).toContain('A 케이스');
       expect(titles).not.toContain('B 케이스');
+    });
+
+    it('bugs 목록', async () => {
+      await api()
+        .post(`/api/orgs/${orgA.id}/bugs`)
+        .set('Authorization', `Bearer ${adminA.accessToken}`)
+        .send({
+          title: 'A 버그',
+          description: '설명',
+          stepsToReproduce: [{ order: 1, action: '확인' }],
+          severity: 'MAJOR',
+        });
+      await ctx.prisma.bugReport.create({
+        data: {
+          organizationId: orgB.id,
+          title: 'B 버그',
+          description: '설명',
+          stepsToReproduce: [{ order: 1, action: '확인' }],
+          reportedById: adminB.userId,
+        },
+      });
+
+      const res = await asA().get(`/api/orgs/${orgA.id}/bugs`);
+      expect(res.status).toBe(200);
+      const titles = typedBody<{ items: { title: string }[] }>(res).items.map(
+        (b) => b.title,
+      );
+      expect(titles).toContain('A 버그');
+      expect(titles).not.toContain('B 버그');
     });
   });
 
