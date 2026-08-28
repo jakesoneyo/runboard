@@ -5,8 +5,8 @@ import { RequireAuth } from "./routes/RequireAuth";
 import { AppShell } from "./layouts/AppShell";
 import { LoginPage } from "./pages/LoginPage";
 import { SuitesPage } from "./pages/SuitesPage";
+import { MembersPage } from "./pages/MembersPage";
 
-// MEMBERS 탭 라우트는 멤버·초대 화면이 갖춰지는 다음 커밋에서 추가한다.
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -17,6 +17,7 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/suites" replace />} />
               <Route path="suites" element={<SuitesPage />} />
+              <Route path="members" element={<MembersPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
