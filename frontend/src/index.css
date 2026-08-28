@@ -1,111 +1,116 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+/*
+ * 전역 스타일 — DESIGN.md "Audit Terminal"(variant-c-bold) 컬러락/형태락 토큰.
+ * 다른 색/둥근 모서리를 추가하지 않는다(컬러락) — design-mockups/variant-c-bold.html 1차 레퍼런스.
+ */
+@import "tailwindcss";
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@theme {
+  --color-ink: #0b0e13;
+  --color-paper: #eef1f6;
+  --color-paper-raised: #ffffff;
+  --color-paper-line: rgba(11, 14, 19, 0.08);
+  --color-paper-line-strong: rgba(11, 14, 19, 0.16);
+  --color-accent: #2748ff;
+  --color-accent-ink: #0d1c8a;
+  --color-accent-tint: #e2e7ff;
+  --color-pass: #127a4a;
+  --color-pass-tint: #e1f3ea;
+  --color-fail: #b5231f;
+  --color-fail-tint: #fbe6e5;
+  --color-blocked: #a85a06;
+  --color-blocked-tint: #faecd8;
+  --color-skip: #4b5563;
+  --color-skip-tint: #e7e9ec;
+  /* 기본 font-mono 유틸을 이 스택으로 교체 — 화면 전체가 monospace라는 형태락 때문에 base layer에서도 그대로 쓴다. */
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  body {
+    /* 목업의 블루프린트 격자 배경 그대로 재현 — 64px 반복선 2방향. */
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        var(--color-paper-line) 0,
+        var(--color-paper-line) 1px,
+        transparent 1px,
+        transparent 64px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        var(--color-paper-line) 0,
+        var(--color-paper-line) 1px,
+        transparent 1px,
+        transparent 64px
+      );
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: #fff;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: var(--font-mono);
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+@layer utilities {
+  /* 목업 .live-dot의 pulse 모션 — prefers-reduced-motion에서는 애니메이션 자체를 제거한다(DESIGN.md 모션 원칙). */
+  @keyframes pulse-live {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+  .animate-pulse-live {
+    animation: pulse-live 1.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pulse-live {
+      animation: none;
+    }
   }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+  .animate-fade-up {
+    animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up {
+      animation: none;
+    }
   }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }
