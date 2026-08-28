@@ -21,20 +21,22 @@ Base URL: `https://<render-host>` ｜ 프리픽스 `/api` ｜ Swagger: `/api/doc
 }
 ```
 
-| code                       | status | 발생 상황                                        |
-| -------------------------- | ------ | ------------------------------------------------ |
-| `VALIDATION_FAILED`        | 400    | Zod 검증 실패                                    |
-| `AUTH_INVALID_CREDENTIALS` | 401    | 로그인 실패(사용자 존재 여부 노출 안 함)         |
-| `AUTH_TOKEN_EXPIRED`       | 401    | access 만료 → 클라이언트가 refresh 시도          |
-| `AUTH_REFRESH_REUSE`       | 401    | 폐기된 refresh 재사용 → 계열 전체 폐기           |
-| `AUTH_REFRESH_INVALID`     | 401    | refresh 토큰이 없거나 만료(재사용 탐지와는 별개) |
-| `AUTH_EMAIL_TAKEN`         | 409    | 회원가입 시 이미 가입된 이메일                   |
-| `ORG_FORBIDDEN`            | 403    | 조직 내 Role 부족                                |
-| `RUN_NOT_ASSIGNED`         | 403    | TESTER가 미배정 실행을 기록 시도                 |
-| `NOT_FOUND`                | 404    | 리소스 없음 **또는 조직 경계 밖**                |
-| `MEMBER_LAST_ADMIN`        | 409    | 마지막 ADMIN 강등/제거 시도                      |
-| `RUN_NOT_IN_PROGRESS`      | 409    | 완료/중단된 실행에 결과 기록 시도                |
-| `TENANT_CONTEXT_MISSING`   | 500    | 조직 컨텍스트 없이 테넌트 쿼리 실행(버그)        |
+| code                       | status | 발생 상황                                                                                                                |
+| -------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `VALIDATION_FAILED`        | 400    | Zod 검증 실패                                                                                                            |
+| `AUTH_INVALID_CREDENTIALS` | 401    | 로그인 실패(사용자 존재 여부 노출 안 함)                                                                                 |
+| `AUTH_TOKEN_EXPIRED`       | 401    | access 만료 → 클라이언트가 refresh 시도                                                                                  |
+| `AUTH_REFRESH_REUSE`       | 401    | 폐기된 refresh 재사용 → 계열 전체 폐기                                                                                   |
+| `AUTH_REFRESH_INVALID`     | 401    | refresh 토큰이 없거나 만료(재사용 탐지와는 별개)                                                                         |
+| `AUTH_EMAIL_TAKEN`         | 409    | 회원가입 시 이미 가입된 이메일                                                                                           |
+| `ORG_FORBIDDEN`            | 403    | 조직 내 Role 부족                                                                                                        |
+| `RUN_NOT_ASSIGNED`         | 403    | TESTER가 미배정 실행을 기록 시도                                                                                         |
+| `NOT_FOUND`                | 404    | 리소스 없음 **또는 조직 경계 밖**                                                                                        |
+| `MEMBER_LAST_ADMIN`        | 409    | 마지막 ADMIN 강등/제거 시도                                                                                              |
+| `RUN_NO_CASES`             | 400    | suiteIds/caseIds가 실제로 케이스 0건으로 귀결(C4) — Zod 스키마 통과 후 DB 조회로만 알 수 있어 `VALIDATION_FAILED`와 분리 |
+| `RUN_NOT_IN_PROGRESS`      | 409    | 완료/중단된 실행에 결과 기록 시도                                                                                        |
+| `RUN_INVALID_TRANSITION`   | 409    | 실행 상태 전이 규칙 위반(C4) — 종료 상태 재변경, 순서를 건너뛴 전이                                                      |
+| `TENANT_CONTEXT_MISSING`   | 500    | 조직 컨텍스트 없이 테넌트 쿼리 실행(버그)                                                                                |
 
 ---
 

@@ -17,6 +17,7 @@ import { CasesModule } from './cases/cases.module';
 import { HealthController } from './health/health.controller';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RunsModule } from './runs/runs.module';
 import { SuitesModule } from './suites/suites.module';
 
 @Module({
@@ -48,6 +49,7 @@ import { SuitesModule } from './suites/suites.module';
     OrganizationsModule,
     SuitesModule,
     CasesModule,
+    RunsModule,
   ],
   controllers: [HealthController],
   providers: [
