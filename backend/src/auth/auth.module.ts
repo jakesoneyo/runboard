@@ -21,5 +21,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
+  // RunsGateway가 소켓 핸드셰이크에서 REST와 "같은" 검증(같은 시크릿의 JwtService.verifyAsync)을
+  // 재사용하도록 JwtModule을 노출한다 — 소켓 전용 JWT 설정을 새로 만들면 시크릿/TTL이 갈라질 위험이 있다.
+  exports: [JwtModule],
 })
 export class AuthModule {}

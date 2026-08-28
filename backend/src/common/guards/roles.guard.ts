@@ -5,8 +5,11 @@ import { getRequestContext } from '../context/request-context';
 import { DomainException } from '../errors/domain-exception';
 import { REQUIRE_ROLE_KEY } from '../decorators/require-role.decorator';
 
-/** ADMIN > QA_LEAD > TESTER > VIEWER — API.md 1장 "N+ " 표기의 등급 순서. */
-const ROLE_RANK: Record<Role, number> = {
+/**
+ * ADMIN > QA_LEAD > TESTER > VIEWER — API.md 1장 "N+ " 표기의 등급 순서.
+ * RunAssignmentGuard도 "QA_LEAD 이상이면 배정 무관하게 허용" 판단에 같은 순위표를 재사용한다.
+ */
+export const ROLE_RANK: Record<Role, number> = {
   [Role.VIEWER]: 0,
   [Role.TESTER]: 1,
   [Role.QA_LEAD]: 2,
