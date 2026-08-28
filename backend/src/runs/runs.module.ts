@@ -21,5 +21,8 @@ import { RunsService } from './runs.service';
     RunSocketRegistry,
     RunAssignmentGuard,
   ],
+  // BugsModule이 org 룸 브로드캐스트(bug:created/bug:updated)에 같은 RunEventsService를 재사용한다
+  // (PLAN.md C5: "새 소켓 인프라 중복 구현 금지").
+  exports: [RunEventsService],
 })
 export class RunsModule {}

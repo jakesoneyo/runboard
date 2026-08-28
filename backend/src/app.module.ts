@@ -13,7 +13,9 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RequestContextMiddleware } from './common/context/request-context.middleware';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { BugsModule } from './bugs/bugs.module';
 import { CasesModule } from './cases/cases.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthController } from './health/health.controller';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -50,6 +52,8 @@ import { SuitesModule } from './suites/suites.module';
     SuitesModule,
     CasesModule,
     RunsModule,
+    BugsModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [

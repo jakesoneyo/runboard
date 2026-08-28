@@ -149,6 +149,7 @@ Base URL: `https://<render-host>` ｜ 프리픽스 `/api` ｜ Swagger: `/api/doc
 | `run:status.changed`    | `run:{runId}` + `org:{orgId}` | `{ runId, status, changedBy, at }`                                                                | 실행 시작/종료/중단            |
 | `run:assignees.changed` | `run:{runId}`                 | `{ runId, assignees: [{ userId, name }] }`                                                        | 배정자 변경                    |
 | `bug:created`           | `org:{orgId}`                 | `{ bugId, title, severity, runId?, reportedBy }`                                                  | 버그 생성                      |
+| `bug:updated`           | `org:{orgId}`                 | `{ bugId, title, status, severity, assigneeId, updatedBy }`                                       | 버그 수정/상태 변경(C5 추가)   |
 | `error`                 | 개별 소켓                     | `{ code, message }`                                                                               | 인가 실패·잘못된 페이로드      |
 
 ### 클라이언트 규칙

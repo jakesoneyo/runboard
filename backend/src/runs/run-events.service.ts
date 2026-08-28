@@ -28,6 +28,23 @@ export interface AssigneesChangedPayload {
   name: string;
 }
 
+export interface BugCreatedPayload {
+  bugId: string;
+  title: string;
+  severity: string;
+  runId: string | null;
+  reportedBy: { id: string; name: string };
+}
+
+export interface BugUpdatedPayload {
+  bugId: string;
+  title: string;
+  status: string;
+  severity: string;
+  assigneeId: string | null;
+  updatedBy: { id: string; name: string };
+}
+
 @Injectable()
 export class RunEventsService {
   constructor(private readonly sockets: RunSocketRegistry) {}
@@ -65,5 +82,22 @@ export class RunEventsService {
     this.sockets.server
       .to(`run:${runId}`)
       .emit('run:assignees.changed', { runId, assignees });
+  }
+
+  /** API.md 8장: 버그 생성은 실행 룸이 아니라 조직 전체(`org:{orgId}`)로 나간다 — 대시보드/버그 목록 화면용. */
+  emitBugCreated(organizationId: string, payload: BugCreatedPayload): void {
+    this.sockets.server
+      .to(`org:${organizationId}`)
+      .emit('bug:created', payload);
+  }
+
+  /**
+   * API.md 8장 표에는 없지만(C4 시점 예약은 bug:created뿐), C5에서 상태/담당자 변경도 실시간으로
+   * 반영하기 위해 같은 org 룸에 추가한 이벤트 — bug:created와 동일한 브로드캐스트 패턴 재사용.
+   */
+  emitBugUpdated(organizationId: string, payload: BugUpdatedPayload): void {
+    this.sockets.server
+      .to(`org:${organizationId}`)
+      .emit('bug:updated', payload);
   }
 }
