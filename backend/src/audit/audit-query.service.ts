@@ -11,6 +11,7 @@ export class AuditQueryService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(organizationId: string, query: ListAuditLogsDto) {
+    const hasRange = query.from || query.to;
     const items = await this.prisma.auditLog.findMany({
       where: {
         organizationId,
@@ -18,6 +19,12 @@ export class AuditQueryService {
         actorId: query.actorId,
         targetType: query.targetType,
         targetId: query.targetId,
+        createdAt: hasRange
+          ? {
+              gte: query.from ? new Date(query.from) : undefined,
+              lte: query.to ? new Date(query.to) : undefined,
+            }
+          : undefined,
       },
       orderBy: { createdAt: 'desc' },
       take: query.take + 1,
