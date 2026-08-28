@@ -4,6 +4,8 @@ import { useAuthStore } from "../stores/auth-store";
 import { useOrgStore } from "../stores/org-store";
 import { useCreateOrganization, useCurrentOrg } from "../features/orgs/hooks";
 import { useLogout } from "../features/auth/hooks";
+import { useOrgRealtime } from "../features/realtime/use-org-realtime";
+import { roleAtLeast } from "../lib/roles";
 import { RoleBadge } from "../components/RoleBadge";
 import { FrameMarks } from "../components/FrameMarks";
 import { Toast } from "../components/Toast";
@@ -20,6 +22,9 @@ export function AppShell() {
   const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
+  // 로그인된 동안 소켓을 연결·유지하고 현재 조직 룸에 머문다(조직 전환 시 자동 재조인) —
+  // 실행 보드(useRunSocket)와 별개로, org 룸으로 브로드캐스트되는 이벤트(버그 생성/수정)용이다.
+  useOrgRealtime();
 
   return (
     <div className="min-h-dvh">
@@ -34,6 +39,14 @@ export function AppShell() {
 
         <nav className="flex gap-0.5 overflow-x-auto">
           <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `${TAB_CLASS} ${isActive ? "border-ink bg-ink text-white" : "hover:border-paper-line-strong"}`
+            }
+          >
+            DASHBOARD
+          </NavLink>
+          <NavLink
             to="/suites"
             className={({ isActive }) =>
               `${TAB_CLASS} ${isActive ? "border-ink bg-ink text-white" : "hover:border-paper-line-strong"}`
@@ -41,6 +54,32 @@ export function AppShell() {
           >
             SUITES
           </NavLink>
+          <NavLink
+            to="/runs"
+            className={({ isActive }) =>
+              `${TAB_CLASS} ${isActive ? "border-ink bg-ink text-white" : "hover:border-paper-line-strong"}`
+            }
+          >
+            EXEC
+          </NavLink>
+          <NavLink
+            to="/bugs"
+            className={({ isActive }) =>
+              `${TAB_CLASS} ${isActive ? "border-ink bg-ink text-white" : "hover:border-paper-line-strong"}`
+            }
+          >
+            BUGS
+          </NavLink>
+          {roleAtLeast(current?.role, "ADMIN") && (
+            <NavLink
+              to="/audit"
+              className={({ isActive }) =>
+                `${TAB_CLASS} ${isActive ? "border-ink bg-ink text-white" : "hover:border-paper-line-strong"}`
+              }
+            >
+              AUDIT
+            </NavLink>
+          )}
           <NavLink
             to="/members"
             className={({ isActive }) =>

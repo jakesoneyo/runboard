@@ -116,3 +116,127 @@ export interface ApiErrorBody {
   message: string;
   details: unknown;
 }
+
+// ───────── C7: 실행 · 버그 · 대시보드 · 감사로그 ─────────
+
+export type RunStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "ABORTED";
+export type RunCaseResult = "PENDING" | "PASS" | "FAIL" | "BLOCKED" | "SKIPPED";
+export type BugSeverity = "MINOR" | "MAJOR" | "CRITICAL";
+export type BugStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "WONTFIX";
+
+/** run-counters.ts와 동일한 필드 모양 — progress/passRate는 서버가 카운터로 계산해 내려준다. */
+export interface RunCounters {
+  totalCount: number;
+  passedCount: number;
+  failedCount: number;
+  blockedCount: number;
+  skippedCount: number;
+  progress: number;
+  passRate: number;
+}
+
+export interface RunAssignee {
+  userId: string;
+  name: string;
+}
+
+/** GET /orgs/:orgId/runs 항목 및 GET .../runs/:runId 상세(형태 동일). */
+export interface RunSummary extends RunCounters {
+  id: string;
+  name: string;
+  description: string | null;
+  status: RunStatus;
+  assignees: RunAssignee[];
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+/** GET /orgs/:orgId/runs/:runId/cases 항목. */
+export interface RunCaseItem {
+  id: string;
+  position: number;
+  title: string;
+  steps: CaseStep[];
+  expectedResult: string;
+  priority: CasePriority;
+  result: RunCaseResult;
+  comment: string | null;
+  recordedBy: { id: string; name?: string } | null;
+  recordedAt: string | null;
+}
+
+/** GET .../runs/:runId/cases/:runCaseId/bug-draft 응답(저장 안 함, 프리필용). */
+export interface BugDraft {
+  title: string;
+  description: string;
+  stepsToReproduce: CaseStep[];
+}
+
+export interface RunCaseSummary {
+  id: string;
+  testRunId: string;
+  title: string;
+  result: RunCaseResult;
+}
+
+export interface BugSummary {
+  id: string;
+  title: string;
+  description: string;
+  stepsToReproduce: CaseStep[];
+  severity: BugSeverity;
+  status: BugStatus;
+  assigneeId: string | null;
+  testRunCaseId: string | null;
+  reportedById: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BugDetail extends BugSummary {
+  runCase: RunCaseSummary | null;
+}
+
+/** GET /orgs/:orgId/dashboard/summary 응답(API.md 7장). */
+export interface DashboardSummary {
+  runs: { active: number; completed: number };
+  cases: { total: number };
+  resultDistribution: Record<RunCaseResult, number>;
+  openBugs: Record<BugSeverity, number>;
+  recentRuns: Array<
+    Pick<RunSummary, "id" | "name" | "status" | "createdAt"> &
+      RunCounters & {
+        startedAt: string | null;
+        completedAt: string | null;
+      }
+  >;
+}
+
+/** GET /orgs/:orgId/dashboard/pass-rate-trend 항목. */
+export interface PassRateTrendPoint {
+  runId: string;
+  name: string;
+  completedAt: string | null;
+  passRate: number;
+  total: number;
+}
+
+/** GET /orgs/:orgId/audit-logs 항목. */
+export interface AuditLogItem {
+  id: string;
+  action: string;
+  actor: { id: string; email: string } | null;
+  targetType: string;
+  targetId: string | null;
+  metadata: Record<string, [unknown, unknown]> | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+/** run:presence.updated 페이로드의 참여자 항목. */
+export interface RunParticipant {
+  userId: string;
+  name: string;
+}
