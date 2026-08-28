@@ -33,6 +33,7 @@ export function authedAgent(app: INestApplication<App>, accessToken: string) {
     post: (url: string) => server().post(url).set('Authorization', authHeader),
     patch: (url: string) =>
       server().patch(url).set('Authorization', authHeader),
+    put: (url: string) => server().put(url).set('Authorization', authHeader),
     delete: (url: string) =>
       server().delete(url).set('Authorization', authHeader),
   };

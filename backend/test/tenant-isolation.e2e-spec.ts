@@ -75,7 +75,12 @@ describe('테넌트 격리 (e2e)', () => {
       expect(res.status).toBe(404);
     });
 
-    // runs/bugs 목록 GET은 C4~C5에서 라우트가 생기면 이 describe 블록에 추가한다.
+    it('runs', async () => {
+      const res = await asA().get(`/api/orgs/${orgB.id}/runs`);
+      expect(res.status).toBe(404);
+    });
+
+    // bugs 목록 GET은 C5에서 라우트가 생기면 이 describe 블록에 추가한다.
   });
 
   describe('T-2: 내 조직 경로 + 남의 조직 리소스 id는 전부 404이고 변경도 없다', () => {
@@ -229,8 +234,5 @@ describe('테넌트 격리 (e2e)', () => {
     });
   });
 
-  // T-7(소켓 룸 격리)은 RunsGateway가 도입되는 C4에서 함께 구현·검증한다(PLAN.md 청크 경계).
-  it.todo(
-    'T-7: 조직 B 멤버가 조직 A run:join 시도 시 거부 — C4(RunsGateway)에서 구현',
-  );
+  // T-7(소켓 룸 격리)은 runs-realtime.e2e-spec.ts에서 RunsGateway로 직접 검증한다.
 });

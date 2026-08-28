@@ -1,5 +1,5 @@
 // PLAN.md 그룹 2(T-8~T-13) — RBAC 권한 경계. C2에 실제로 존재하는 엔드포인트(orgs/members/invitations/
-// audit-logs)로 검증한다. runs 관련(T-9, T-10)은 RunAssignmentGuard가 도입되는 C4에서 함께 구현한다.
+// audit-logs)로 검증한다. runs 관련(T-9, T-10)은 runs.e2e-spec.ts에서 RunAssignmentGuard로 검증한다.
 import { Role } from '@prisma/client';
 import {
   addMember,
@@ -151,9 +151,8 @@ describe('RBAC (e2e)', () => {
     );
   });
 
-  // T-9/T-10(RUN_NOT_ASSIGNED, 배정 여부에 따른 기록 권한)은 실행(TestRun) 도메인이 생기는 C4에서 구현한다.
-  it.todo('T-9: 미배정 TESTER의 결과 기록 403 RUN_NOT_ASSIGNED — C4에서 구현');
-  it.todo('T-10: 배정된 TESTER/QA_LEAD의 결과 기록 200 — C4에서 구현');
+  // T-9/T-10(RUN_NOT_ASSIGNED, 배정 여부에 따른 기록 권한)은 runs.e2e-spec.ts
+  // "T-9/T-10: 배정 여부에 따른 결과 기록 권한"에서 실제 실행 데이터로 검증한다.
 
   describe('T-11: 마지막 ADMIN 강등/제거 방지', () => {
     it('유일한 ADMIN을 강등하려 하면 409 MEMBER_LAST_ADMIN', async () => {
