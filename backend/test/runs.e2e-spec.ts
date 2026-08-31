@@ -296,6 +296,22 @@ describe('실행(TestRun) (e2e)', () => {
       expect(sum).toBe(1); // 이 실행엔 케이스가 1개뿐 — 합계가 total과 일치
     });
 
+    it('같은 결과(PASS)를 재기록해도 카운터가 이중 증가하지 않는다', async () => {
+      // 회귀 테스트: applyCounterShift가 prevField===nextField일 때 decrement를
+      // increment로 덮어써 passedCount가 2로 뛰던 버그(FAIL→PASS만 검증하던 위 테스트는
+      // 서로 다른 필드 전이라 이 버그를 놓쳤다). 직전 테스트에서 이미 PASS로 기록된 케이스에
+      // 같은 PASS를 한 번 더 기록해서 재현한다.
+      const again = await authed(qaLead)
+        .patch(runsUrl(`/${runId}/cases/${runCaseId}`))
+        .send({ result: 'PASS' });
+      expect(again.status).toBe(200);
+      const counters = typedBody<{ counters: RunResponse }>(again).counters;
+      expect(counters.passedCount).toBe(1);
+      expect(counters.totalCount).toBe(1);
+      expect(counters.progress).toBeLessThanOrEqual(1);
+      expect(counters.passRate).toBeLessThanOrEqual(1);
+    });
+
     it('COMPLETED로 전이 후 기록 시도는 다시 409 RUN_NOT_IN_PROGRESS', async () => {
       const complete = await authed(qaLead)
         .patch(runsUrl(`/${runId}/status`))
