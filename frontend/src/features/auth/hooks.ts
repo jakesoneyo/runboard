@@ -1,14 +1,27 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { login, logoutRequest, registerAccount } from "./api";
 import { useAuthStore } from "../../stores/auth-store";
 import { useOrgStore } from "../../stores/org-store";
 import { disconnectSocket } from "../../lib/socket";
 
-/** 로그인/데모 로그인 공용 훅. 성공 시 세션 저장 + 조직 목록 캐시 무효화 후 앱으로 이동. */
+/**
+ * 로그인 화면이 `/login?redirect=/invitations/accept?token=...` 형태로 도착지를 실어 보낼 때(초대
+ * 수락 흐름) 그 값을 신뢰하고 그대로 navigate에 넘기면 오픈 리다이렉트가 될 수 있어, 앱 내부
+ * 경로("/"로 시작하되 "//"는 아님)로만 좁힌다.
+ */
+function sanitizeRedirect(target: string | null): string | null {
+  if (!target || !target.startsWith("/") || target.startsWith("//")) {
+    return null;
+  }
+  return target;
+}
+
+/** 로그인/데모 로그인 공용 훅. 성공 시 세션 저장 + 조직 목록 캐시 무효화 후 앱(또는 요청된 화면)으로 이동. */
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -16,7 +29,9 @@ export function useLogin() {
     onSuccess: (auth) => {
       setAuth(auth);
       void queryClient.invalidateQueries({ queryKey: ["orgs"] });
-      navigate("/", { replace: true });
+      navigate(sanitizeRedirect(searchParams.get("redirect")) ?? "/", {
+        replace: true,
+      });
     },
   });
 }
@@ -24,12 +39,15 @@ export function useLogin() {
 export function useRegister() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   return useMutation({
     mutationFn: registerAccount,
     onSuccess: (auth) => {
       setAuth(auth);
-      navigate("/", { replace: true });
+      navigate(sanitizeRedirect(searchParams.get("redirect")) ?? "/", {
+        replace: true,
+      });
     },
   });
 }

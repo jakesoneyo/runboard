@@ -12,6 +12,7 @@ import { RunExecutionPage } from "./pages/RunExecutionPage";
 import { BugsPage } from "./pages/BugsPage";
 import { AuditPage } from "./pages/AuditPage";
 import { MembersPage } from "./pages/MembersPage";
+import { InvitationAcceptPage } from "./pages/InvitationAcceptPage";
 
 export default function App() {
   return (
@@ -19,6 +20,11 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* RequireAuth 밖에 둔다 — 미로그인 판단과 로그인 후 복귀를 이 페이지가 직접 처리한다. */}
+          <Route
+            path="/invitations/accept"
+            element={<InvitationAcceptPage />}
+          />
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
