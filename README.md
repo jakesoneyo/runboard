@@ -5,7 +5,9 @@
 
 [![CI](https://github.com/jakesoneyo/runboard/actions/workflows/ci.yml/badge.svg)](https://github.com/jakesoneyo/runboard/actions)
 
-🔗 **라이브**: 배포 예정 (프론트 Vercel · 백엔드 Render/Docker · DB Neon — 로컬 시연은 아래 "로컬 실행" 참고)
+🔗 **라이브**: [runboard-mu.vercel.app](https://runboard-mu.vercel.app) (프론트 Vercel) · 백엔드 [runboard-backend.onrender.com](https://runboard-backend.onrender.com)([/health](https://runboard-backend.onrender.com/health) · [/api/docs](https://runboard-backend.onrender.com/api/docs)) · DB Neon — 로컬 시연은 아래 "로컬 실행" 참고
+
+> Render 무료 플랜은 15분 무활동 시 슬립 상태로 들어간다. 첫 요청이 콜드스타트로 수십 초 걸릴 수 있으니 데모 전 `/health`를 한 번 먼저 열어 깨워두는 걸 권장.
 
 상세 문서: [SPEC.md](./SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATA-MODEL.md](./DATA-MODEL.md) · [API.md](./API.md) · [PLAN.md](./PLAN.md) · [UBIQUITOUS_LANGUAGE.md](./UBIQUITOUS_LANGUAGE.md)
 
@@ -137,7 +139,7 @@ npm run dev                     # http://localhost:5173
 
 ## API 문서
 
-Swagger: 로컬 `http://localhost:3000/api/docs` (라이브 배포 후 이 절에 URL 추가 예정). 모든 엔드포인트에 요청/응답 DTO와 요구 Role이 노출된다.
+Swagger: 로컬 `http://localhost:3000/api/docs` · 라이브 [runboard-backend.onrender.com/api/docs](https://runboard-backend.onrender.com/api/docs). 모든 엔드포인트에 요청/응답 DTO와 요구 Role이 노출된다.
 
 ## 테스트 / 빌드
 
