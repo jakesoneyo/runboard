@@ -19,7 +19,11 @@ import type { RecordResultDto } from './dto/record-result.schema';
 import type { UpdateAssigneesDto } from './dto/update-assignees.schema';
 import type { UpdateRunStatusDto } from './dto/update-run-status.schema';
 import { RunEventsService } from './run-events.service';
-import { COUNTER_FIELD_BY_RESULT, computeCounters } from './lib/run-counters';
+import {
+  COUNTER_FIELD_BY_RESULT,
+  computeCounters,
+  type CounterField,
+} from './lib/run-counters';
 import { assertValidRunTransition } from './lib/run-status-transition';
 
 @Injectable()
@@ -396,10 +400,24 @@ export class RunsService {
   ) {
     const prevField = COUNTER_FIELD_BY_RESULT[previousResult];
     const nextField = COUNTER_FIELD_BY_RESULT[nextResult];
-    // 카운터 필드가 없는 경우(PENDING)는 증감이 없다 — 같은 필드로 상쇄되는 경우도 자연히 처리된다.
+    // 두 갱신을 각각 별도 { decrement/increment } 로 넘기면 같은 필드일 때
+    // Prisma가 마지막 값(increment)으로 덮어써 decrement가 사라진다(예: PASS→PASS 재기록 시
+    // total은 그대로인데 passedCount만 +1 되는 이중 증가 버그). 필드별 순증감을 delta로 먼저
+    // 합산한 뒤 0이 아닌 필드만 반영해야 "같은 결과 재기록 = 무변화"가 보장된다.
+    const delta: Partial<Record<CounterField, number>> = {};
+    if (prevField) delta[prevField] = (delta[prevField] ?? 0) - 1;
+    if (nextField) delta[nextField] = (delta[nextField] ?? 0) + 1;
+
     const data: Prisma.TestRunUpdateInput = {};
-    if (prevField) data[prevField] = { decrement: 1 };
-    if (nextField) data[nextField] = { increment: 1 };
+    for (const [field, value] of Object.entries(delta) as Array<
+      [CounterField, number]
+    >) {
+      if (value === 0) continue;
+      data[field] = value > 0 ? { increment: value } : { decrement: -value };
+    }
+    if (Object.keys(data).length === 0) {
+      return tx.testRun.findUniqueOrThrow({ where: { id: runId } });
+    }
     return tx.testRun.update({ where: { id: runId }, data });
   }
 

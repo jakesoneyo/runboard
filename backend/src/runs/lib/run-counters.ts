@@ -28,11 +28,18 @@ export interface RunCounters extends RunCounterFields {
   passRate: number;
 }
 
-/** API.md 5장: progress = (total-pending)/total, passRate = passed/(total-pending). */
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+/**
+ * API.md 5장: progress = (total-pending)/total, passRate = passed/(total-pending).
+ * 0~1로 clamp하는 이유: 카운터 갱신 로직에 미래에 다른 버그가 섞여 들어와도(예:
+ * applyCounterShift 유사 회귀) 화면에 100%를 넘는 진행률 같은 명백히 잘못된 값이
+ * 그대로 노출되지 않도록 하는 마지막 방어선이다 — 근본 수정은 카운터 계산 쪽에서 한다.
+ */
 export function computeCounters(run: RunCounterFields): RunCounters {
   const recorded =
     run.passedCount + run.failedCount + run.blockedCount + run.skippedCount;
   const progress = run.totalCount === 0 ? 0 : recorded / run.totalCount;
   const passRate = recorded === 0 ? 0 : run.passedCount / recorded;
-  return { ...run, progress, passRate };
+  return { ...run, progress: clamp01(progress), passRate: clamp01(passRate) };
 }
