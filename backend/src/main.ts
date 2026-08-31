@@ -3,6 +3,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { resolveCorsOrigin } from './common/config/cors.config';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 
 /**
@@ -29,7 +30,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  app.enableCors({ origin: process.env.CORS_ORIGINS?.split(',') ?? true });
+  // resolveCorsOrigin()이 프로덕션에서 CORS_ORIGINS 미설정 시 throw한다(fail-fast).
+  app.enableCors({ origin: resolveCorsOrigin() });
 
   await app.listen(process.env.PORT ?? 3000);
 }

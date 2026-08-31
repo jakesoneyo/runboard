@@ -12,6 +12,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import type { Namespace, Socket } from 'socket.io';
 import type { AccessTokenPayload } from '../auth/strategies/jwt.strategy';
+import { resolveCorsOrigin } from '../common/config/cors.config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RunPresenceService } from './run-presence.service';
 import { RunSocketRegistry } from './run-socket.registry';
@@ -32,7 +33,9 @@ type AckResponse =
  */
 @WebSocketGateway({
   namespace: '/realtime',
-  cors: { origin: process.env.CORS_ORIGINS?.split(',') ?? true },
+  // main.ts와 동일한 resolveCorsOrigin()을 쓴다 — REST/WS가 각자 fallback을 두면
+  // 한쪽만 잠그는 사고가 난다(REVIEW.md 🔴-3). 프로덕션에서 CORS_ORIGINS 미설정이면 throw.
+  cors: { origin: resolveCorsOrigin() },
   transports: ['websocket'],
 })
 export class RunsGateway implements OnGatewayInit, OnGatewayDisconnect {
