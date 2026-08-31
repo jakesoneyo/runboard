@@ -39,7 +39,11 @@ export function ExecCaseRow({
   const showToast = useUiStore((s) => s.showToast);
 
   function record(result: RunCaseResult) {
-    if (disabled || recordResult.isPending) return;
+    // 이미 선택된 결과를 다시 누르면 API 호출 자체를 스킵한다 — 백엔드가 멱등하게
+    // 처리하도록 고쳐졌더라도(REVIEW.md 🔴-1) 불필요한 왕복을 없애고, 재클릭이
+    // 아무 반응 없다는 걸 UI로도 명확히 보여준다.
+    if (disabled || recordResult.isPending || caseItem.result === result)
+      return;
     recordResult.mutate(
       { runCaseId: caseItem.id, result },
       {
