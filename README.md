@@ -128,6 +128,12 @@ npm run dev                     # http://localhost:5173
 
 - **백엔드(Render)**: `render.yaml` Blueprint 연결 후 대시보드에서 `DATABASE_URL`·`DIRECT_URL`(Neon 직결/non-pooled)·`JWT_SECRET`·`CORS_ORIGINS`(배포된 Vercel 도메인, 콤마 구분 가능)·`FRONTEND_URL`을 `sync: false` 값으로 채운다. `CORS_ORIGINS`가 비어 있으면 프로덕션에서 서버가 기동 즉시 실패한다(`backend/src/common/config/cors.config.ts`) — 전체 허용으로 조용히 열리는 사고를 방지하기 위한 의도된 동작이다.
 - **프론트(Vercel)**: `VITE_API_URL`(`https://<render-host>/api`)과 `VITE_WS_URL`(`https://<render-host>`)을 **Vercel 프로젝트 환경변수로 빌드 전에** 등록해야 한다 — Vite는 빌드타임에 `import.meta.env`를 치환하므로 배포 후 런타임에 값을 바꿀 수 없다(다시 빌드해야 반영됨).
+- **데모 시드(필수, 1회)**: Render는 무료 플랜이라 배포 후 셸 접근이 없고, 프로덕션 이미지는 `npm prune --omit=dev`로 `ts-node`를 지워서 컨테이너 안에서 시드를 못 돌린다. 대신 **로컬 머신에서 Neon을 직접 향해** 실행한다 — idempotent라 재실행해도 안전하다.
+  ```bash
+  cd backend
+  DATABASE_URL='<neon-pooled-url>' DIRECT_URL='<neon-direct-url>' npm run seed:demo
+  ```
+  이 단계 없이는 `admin`/`admin` 로그인이 401로 실패한다(마이그레이션만으로는 계정이 생기지 않음).
 
 ## API 문서
 
