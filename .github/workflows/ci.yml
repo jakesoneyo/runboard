@@ -1,5 +1,5 @@
-# .github/workflows/ci.yml 로 복사.
-# GitHub 호스트 러너엔 Docker가 있어 Testcontainers가 별도 서비스 없이 동작한다.
+# 백엔드(lint·단위/통합테스트·빌드) + 프론트(lint·빌드)를 각각 독립 잡으로 돌린다.
+# GitHub 호스트 러너엔 Docker가 이미 떠 있어 Testcontainers(backend `npm test`)가 별도 서비스 정의 없이 동작한다.
 name: CI
 on:
   push:
