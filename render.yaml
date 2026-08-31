@@ -12,7 +12,14 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+      - key: DIRECT_URL # Neon 직결(non-pooled) 문자열 — prisma.config.ts가 migrate deploy에 사용, 없으면 기동 즉시 종료
+        sync: false
       - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS # 배포 후 확정된 Vercel 도메인(콤마 구분 가능) — 없으면 main.ts가 fail-fast
+        sync: false
+      - key: FRONTEND_URL # 초대 링크 절대 URL 조립용(invitations.service.ts) — 없으면 상대경로만 반환
         sync: false
       - key: NODE_ENV
         value: production
+      # PORT는 Render가 자동 주입한다(main.ts가 process.env.PORT를 그대로 사용) — 여기 추가하지 않는다.

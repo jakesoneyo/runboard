@@ -124,6 +124,11 @@ npm run dev                     # http://localhost:5173
 
 브라우저에서 `admin` / `admin`으로 로그인(또는 `회원가입 없이 둘러보기` 버튼)하면 채워진 대시보드로 진입한다.
 
+## 배포
+
+- **백엔드(Render)**: `render.yaml` Blueprint 연결 후 대시보드에서 `DATABASE_URL`·`DIRECT_URL`(Neon 직결/non-pooled)·`JWT_SECRET`·`CORS_ORIGINS`(배포된 Vercel 도메인, 콤마 구분 가능)·`FRONTEND_URL`을 `sync: false` 값으로 채운다. `CORS_ORIGINS`가 비어 있으면 프로덕션에서 서버가 기동 즉시 실패한다(`backend/src/common/config/cors.config.ts`) — 전체 허용으로 조용히 열리는 사고를 방지하기 위한 의도된 동작이다.
+- **프론트(Vercel)**: `VITE_API_URL`(`https://<render-host>/api`)과 `VITE_WS_URL`(`https://<render-host>`)을 **Vercel 프로젝트 환경변수로 빌드 전에** 등록해야 한다 — Vite는 빌드타임에 `import.meta.env`를 치환하므로 배포 후 런타임에 값을 바꿀 수 없다(다시 빌드해야 반영됨).
+
 ## API 문서
 
 Swagger: 로컬 `http://localhost:3000/api/docs` (라이브 배포 후 이 절에 URL 추가 예정). 모든 엔드포인트에 요청/응답 DTO와 요구 Role이 노출된다.
