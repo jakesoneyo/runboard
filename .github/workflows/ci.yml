@@ -19,8 +19,12 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
+      # node:22 계열이 내장한 npm 10은 jest-resolve가 끌어오는 도달 불가능한 wasm32-wasi
+      # 서브트리(@emnapi/*)를 lockfile 정합성 검사에서 오판해 `npm ci`를 EUSAGE로 실패시킨다
+      # (Dockerfile에서 겪은 것과 동일한 버그, npm 11에선 재현 안 됨 — backend/Dockerfile 참고).
+      - run: npm install -g npm@11.6.2
       - run: npm ci
-      - run: npm run lint --if-present
+      - run: npx eslint "{src,test}/**/*.ts" # package.json의 lint는 --fix라 CI에서 위반을 못 잡는다(REVIEW.md 🟡)
       - run: npm test
       - run: npm run build
 
