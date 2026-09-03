@@ -20,6 +20,10 @@ npm-debug.log*
 # --- Prisma ---
 backend/prisma/migrations/dev.db
 
+# --- 학습팩 PDF (아카이브는 _portfolio-index/pdf/, 공부/에 별도 보관 — 레포엔 md만) ---
+/STUDY*.pdf
+/INTERVIEW*.pdf
+
 # --- 에디터/OS ---
 .vscode/*
 !.vscode/extensions.json
